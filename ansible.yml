@@ -1,0 +1,55 @@
+---
+- hosts: all
+  tasks:
+    - name: Generate missing SSH keys
+      shell: sudo ssh-keygen -A
+
+    - name: Locales - Set locale to en_EN.UTF-8
+      shell: sudo echo "export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8" > /etc/profile.d/utf_env.sh
+
+    - name: Locales - Ensure correct permissions
+      file: path=/etc/profile.d/utf_env.sh state=file owner=root group=root mode=0755
+
+    - name: Locales - Set proper locales
+      command: sudo update-locale LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+    - name: Locales - Rebuild locales
+      command: /usr/sbin/locale-gen en_US.UTF-8
+
+    - name: Locales - Reconfigure
+      command: sudo /usr/sbin/dpkg-reconfigure -f noninteractive locales
+
+    - name: APT - Enable all apt repositories
+      apt_repository: repo='deb http://archive.ubuntu.com/ubuntu {{ansible_distribution_release}} main restricted universe multiverse' state=present
+    - name: APT - Enable all apt repositories (sources)
+      apt_repository: repo='deb-src http://archive.ubuntu.com/ubuntu {{ansible_distribution_release}} main restricted universe multiverse' state=present
+    - name: APT - Enable apt updates repositories
+      apt_repository: repo='deb http://archive.ubuntu.com/ubuntu {{ansible_distribution_release}}-updates main restricted universe multiverse' state=present
+    - name: APT - Enable apt updates repositories (sources)
+      apt_repository: repo='deb-src http://archive.ubuntu.com/ubuntu {{ansible_distribution_release}}-updates main restricted universe multiverse' state=present
+    - name: APT - Enable apt security repositories
+      apt_repository: repo='deb http://security.ubuntu.com/ubuntu {{ansible_distribution_release}}-security main restricted universe multiverse' state=present
+    - name: APT - Enable apt security repositories (sources)
+      apt_repository: repo='deb-src http://security.ubuntu.com/ubuntu {{ansible_distribution_release}}-security main restricted universe multiverse' state=present
+    - name: APT - Enable apt partner repositories
+      apt_repository: repo='deb http://archive.canonical.com/ubuntu {{ansible_distribution_release}} partner' state=present
+    - name: APT - Enable apt partner repositories (sources)
+      apt_repository: repo='deb-src http://archive.canonical.com/ubuntu {{ansible_distribution_release}} partner' state=present
+
+    - name: Core - dependencies - install dbus
+      apt: pkg=dbus state=latest
+
+    - name: Phoenix/Erlang - Fetch & install Erlang
+      shell: 'wget -O /tmp/erlang.tar.gz https://s3.amazonaws.com/heroku-buildpack-elixir/erlang/cedar-14/OTP-17.5.3.tar.gz && mkdir -p /usr/local/erlang && tar xzvf /tmp/erlang.tar.gz -C /usr/local/erlang --strip-components=1 && /usr/local/erlang/Install -minimal /usr/local/erlang && ln -s -t /usr/local/bin /usr/local/erlang/bin/* && rm /tmp/erlang.tar.gz'
+
+    - name: Phoenix/Elixir - Fetch & install Elixir
+      shell: 'wget -O /tmp/elixir.zip https://s3.amazonaws.com/s3.hex.pm/builds/elixir/v1.0.5.zip && mkdir -p /usr/local/elixir && cd /usr/local/elixir && unzip -q /tmp/elixir.zip && chmod +x /usr/local/elixir/bin/* && ln -s -t /usr/local/bin /usr/local/elixir/bin/* && rm /tmp/elixir.zip'
+
+    - name: Some useful dev tools
+      apt: pkg={{item}} state=latest
+      with_items:
+      - rpl
+      - graphviz
+      - mc
+      - htop
+      - git
