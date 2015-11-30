@@ -1,4 +1,4 @@
-defmodule Dbux.Mixfile do
+defmodule DBux.Mixfile do
   use Mix.Project
 
   def project do
@@ -7,6 +7,7 @@ defmodule Dbux.Mixfile do
      elixir: "~> 1.0",
      description: description,
      package: package,
+     preferred_cli_env: [espec: :test],
      deps: deps]
   end
 
@@ -15,7 +16,8 @@ defmodule Dbux.Mixfile do
   end
 
   defp deps do
-    [{:connection, "~> 1.0.2"}]
+    [{:connection, "~> 1.0.2"},
+     {:espec, "~> 0.8.6", only: :test}]
   end
 
   defp description do

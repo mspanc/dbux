@@ -36,14 +36,20 @@
     - name: APT - Enable apt partner repositories (sources)
       apt_repository: repo='deb-src http://archive.canonical.com/ubuntu {{ansible_distribution_release}} partner' state=present
 
-    - name: Core - dependencies - install dbus
-      apt: pkg=dbus state=latest
+    - name: Core - dependencies - install wget
+      apt: pkg=wget state=latest
+
+    - name: Core - dependencies - install unzip
+      apt: pkg=unzip state=latest
 
     - name: Phoenix/Erlang - Fetch & install Erlang
       shell: 'wget -O /tmp/erlang.tar.gz https://s3.amazonaws.com/heroku-buildpack-elixir/erlang/cedar-14/OTP-17.5.3.tar.gz && mkdir -p /usr/local/erlang && tar xzvf /tmp/erlang.tar.gz -C /usr/local/erlang --strip-components=1 && /usr/local/erlang/Install -minimal /usr/local/erlang && ln -s -t /usr/local/bin /usr/local/erlang/bin/* && rm /tmp/erlang.tar.gz'
 
     - name: Phoenix/Elixir - Fetch & install Elixir
       shell: 'wget -O /tmp/elixir.zip https://s3.amazonaws.com/s3.hex.pm/builds/elixir/v1.0.5.zip && mkdir -p /usr/local/elixir && cd /usr/local/elixir && unzip -q /tmp/elixir.zip && chmod +x /usr/local/elixir/bin/* && ln -s -t /usr/local/bin /usr/local/elixir/bin/* && rm /tmp/elixir.zip'
+
+    - name: Core - dependencies - install dbus
+      apt: pkg=dbus state=latest
 
     - name: Some useful dev tools
       apt: pkg={{item}} state=latest
