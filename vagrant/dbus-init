@@ -1,0 +1,85 @@
+#! /bin/sh
+# (c) 2011-2015 Marcin Lewandowski <marcin@saepia.net>
+# All rights reserved.
+
+### BEGIN INIT INFO
+# Provides:             dbus-headless-server
+# Required-Start:       $remote_fs $syslog
+# Required-Stop:        $remote_fs $syslog
+# Default-Start:        2 3 4 5
+# Default-Stop:         0 1 6
+# Short-Description:    DBus-based session buses for headless installations
+### END INIT INFO
+
+set -e
+
+# /etc/init.d/dbus-headless-server: start and stop D-Bus-based session bus
+#
+# (c) 2011-2015 Marcin Lewandowski <marcin@saepia.net>
+
+test -x /bin/dbus-daemon || exit 1
+
+umask 022
+
+. /lib/lsb/init-functions
+
+ACCOUNT=vagrant
+
+case "$1" in
+  start)
+        log_daemon_msg "Starting DBus"
+
+        account_home=$(eval echo ~$ACCOUNT)
+        instance_dir=$account_home/.dbus
+
+        mkdir -p $instance_dir
+
+        if start-stop-daemon --start --quiet --chuid $ACCOUNT --name dbus-daemon --user $ACCOUNT --startas /bin/dbus-daemon -- --fork --session --config-file=/etc/dbus-1/session-headless.conf --print-address=1 --print-pid=2 $DBUS_ARGS >$instance_dir/session_bus_address.tmp 2>$instance_dir/session_bus_pid.tmp; then
+          mv -f $instance_dir/session_bus_address.tmp $instance_dir/session_bus_address
+          mv -f $instance_dir/session_bus_pid.tmp $instance_dir/session_bus_pid
+
+          log_end_msg 0
+
+        else
+          rm -f $instance_dir/session_bus_address.tmp $instance_dir/session_bus_address.tmp
+          rm -f $instance_dir/session_bus_pid.tmp $instance_dir/session_bus_pid.tmp
+
+          if log_end_msg 1; then
+            :;
+          fi
+        fi
+        ;;
+
+  stop)
+        log_daemon_msg "Stopping DBus"
+
+        account_home=$(eval echo ~$ACCOUNT)
+        instance_dir=$account_home/.dbus
+
+        mkdir -p $instance_dir
+
+        if start-stop-daemon --stop --quiet --chuid $ACCOUNT --name dbus-daemon --user $ACCOUNT --startas /bin/dbus-daemon -- --fork --session; then
+          rm -f $instance_dir/session_bus_address.tmp $instance_dir/session_bus_address
+          rm -f $instance_dir/session_bus_pid.tmp $instance_dir/session_bus_pid
+
+          log_end_msg 0
+
+        else
+          if log_end_msg 1; then
+            :;
+          fi
+        fi
+        ;;
+
+        restart)
+        /etc/init.d/dbus-headless-server stop
+        sleep 1
+        /etc/init.d/dbus-headless-server start
+        ;;
+
+  *)
+        log_action_msg "Usage: /etc/init.d/dbus-headless-server {start|stop|restart}"
+        exit 1
+esac
+
+exit 0

@@ -10,6 +10,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.provision "ansible" do |ansible|
     ansible.sudo = true
-    ansible.playbook = "ansible.yml"
+    ansible.playbook = "vagrant/ansible.yml"
   end
 end

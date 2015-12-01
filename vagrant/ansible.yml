@@ -1,5 +1,9 @@
 ---
 - hosts: all
+  handlers:
+    - name: restart dbus-headless-server
+      service: name=dbus-headless-server state=restarted
+
   tasks:
     - name: Generate missing SSH keys
       shell: sudo ssh-keygen -A
@@ -43,13 +47,28 @@
       apt: pkg=unzip state=latest
 
     - name: Phoenix/Erlang - Fetch & install Erlang
-      shell: 'wget -O /tmp/erlang.tar.gz https://s3.amazonaws.com/heroku-buildpack-elixir/erlang/cedar-14/OTP-17.5.3.tar.gz && mkdir -p /usr/local/erlang && tar xzvf /tmp/erlang.tar.gz -C /usr/local/erlang --strip-components=1 && /usr/local/erlang/Install -minimal /usr/local/erlang && ln -s -t /usr/local/bin /usr/local/erlang/bin/* && rm /tmp/erlang.tar.gz'
+      shell: '[ ! -f /usr/local/bin/erl ] && (wget -O /tmp/erlang.tar.gz https://s3.amazonaws.com/heroku-buildpack-elixir/erlang/cedar-14/OTP-17.5.3.tar.gz && mkdir -p /usr/local/erlang && tar xzvf /tmp/erlang.tar.gz -C /usr/local/erlang --strip-components=1 && /usr/local/erlang/Install -minimal /usr/local/erlang && ln -s -t /usr/local/bin /usr/local/erlang/bin/* && rm /tmp/erlang.tar.gz) || true'
 
     - name: Phoenix/Elixir - Fetch & install Elixir
-      shell: 'wget -O /tmp/elixir.zip https://s3.amazonaws.com/s3.hex.pm/builds/elixir/v1.0.5.zip && mkdir -p /usr/local/elixir && cd /usr/local/elixir && unzip -q /tmp/elixir.zip && chmod +x /usr/local/elixir/bin/* && ln -s -t /usr/local/bin /usr/local/elixir/bin/* && rm /tmp/elixir.zip'
+      shell: '[ ! -f /usr/local/bin/iex ] && (wget -O /tmp/elixir.zip https://s3.amazonaws.com/s3.hex.pm/builds/elixir/v1.0.5.zip && mkdir -p /usr/local/elixir && cd /usr/local/elixir && unzip -q /tmp/elixir.zip && chmod +x /usr/local/elixir/bin/* && ln -s -t /usr/local/bin /usr/local/elixir/bin/* && rm /tmp/elixir.zip) || true'
 
-    - name: Core - dependencies - install dbus
+    - name: Ensure that DBus is at the latest version
       apt: pkg=dbus state=latest
+      notify:
+      - restart dbus-headless-server
+
+    - name: Create DBus headless session server init script
+      template: src=dbus-init dest=/etc/init.d/dbus-headless-server owner=root group=root mode=0755
+      notify:
+      - restart dbus-headless-server
+
+    - name: Create DBus headless session server config script
+      template: src=dbus-session.conf dest=/etc/dbus-1/session-headless.conf owner=root group=root mode=0755
+      notify:
+      - restart dbus-headless-server
+
+    - name: Ensure that DBus is going to start on the boot
+      service: name=dbus-headless-server enabled=true
 
     - name: Some useful dev tools
       apt: pkg={{item}} state=latest
