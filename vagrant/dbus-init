@@ -34,7 +34,7 @@ case "$1" in
 
         mkdir -p $instance_dir
 
-        if start-stop-daemon --start --quiet --chuid $ACCOUNT --name dbus-daemon --user $ACCOUNT --startas /bin/dbus-daemon -- --fork --session --config-file=/etc/dbus-1/session-headless.conf --print-address=1 --print-pid=2 $DBUS_ARGS >$instance_dir/session_bus_address.tmp 2>$instance_dir/session_bus_pid.tmp; then
+        if start-stop-daemon --start --quiet --chuid $ACCOUNT --name dbus-daemon --user $ACCOUNT --startas /bin/dbus-daemon -- --fork --config-file=/etc/dbus-1/session-headless.conf --print-address=1 --print-pid=2 $DBUS_ARGS >$instance_dir/session_bus_address.tmp 2>$instance_dir/session_bus_pid.tmp; then
           mv -f $instance_dir/session_bus_address.tmp $instance_dir/session_bus_address
           mv -f $instance_dir/session_bus_pid.tmp $instance_dir/session_bus_pid
 
@@ -58,7 +58,7 @@ case "$1" in
 
         mkdir -p $instance_dir
 
-        if start-stop-daemon --stop --quiet --chuid $ACCOUNT --name dbus-daemon --user $ACCOUNT --startas /bin/dbus-daemon -- --fork --session; then
+        if start-stop-daemon --stop --quiet --chuid $ACCOUNT --name dbus-daemon --user $ACCOUNT --startas /bin/dbus-daemon -- --fork --config-file=/etc/dbus-1/session-headless.conf; then
           rm -f $instance_dir/session_bus_address.tmp $instance_dir/session_bus_address
           rm -f $instance_dir/session_bus_pid.tmp $instance_dir/session_bus_pid
 
