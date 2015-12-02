@@ -135,6 +135,7 @@ defmodule DBux.Value do
   def marshall(%DBux.Value{type: :string, value: value}, endianness) when is_binary(value) do
     if Kernel.byte_size(value) > 0xFFFFFFFF, do: throw {:badarg, :value, :outofrange}
     if String.contains?(value, << 0 >>),     do: throw {:badarg, :value, :invalid}
+    unless String.valid?(value),             do: throw {:badarg, :value, :invalid}
 
     case endianness do
       :little_endian ->
@@ -156,6 +157,7 @@ defmodule DBux.Value do
   def marshall(%DBux.Value{type: :signature, value: value}, endianness) when is_binary(value) do
     if Kernel.byte_size(value) > 0xFF,   do: throw {:badarg, :value, :outofrange}
     if String.contains?(value, << 0 >>), do: throw {:badarg, :value, :invalid}
+    unless String.valid?(value),         do: throw {:badarg, :value, :invalid}
     # TODO add check if it contains a valid signature
 
     case endianness do

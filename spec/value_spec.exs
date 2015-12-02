@@ -591,6 +591,14 @@ defmodule DBux.ValueSpec do
 
       context "that is invalid" do
         context "and represented as string" do
+          context "but value contains invalid UTF-8" do
+            let :value, do: "ABC" <> <<0xffff :: 16>> <> "DEF"
+
+            it "throws {:badarg, :value, :invalid}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :invalid})
+            end
+          end
+
           context "but value contains null bytes" do
             let :value, do: "ABC" <> << 0 >> <> "DEF"
 
@@ -723,6 +731,14 @@ defmodule DBux.ValueSpec do
 
       context "that is invalid" do
         context "and represented as string" do
+          context "but value contains invalid UTF-8" do
+            let :value, do: "ABC" <> <<0xffff :: 16>> <> "DEF"
+
+            it "throws {:badarg, :value, :invalid}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :invalid})
+            end
+          end
+
           context "but value contains null bytes" do
             let :value, do: "ABC" <> << 0 >> <> "DEF"
 
@@ -794,6 +810,14 @@ defmodule DBux.ValueSpec do
 
       context "that is invalid" do
         context "and represented as string" do
+          context "but value contains invalid UTF-8" do
+            let :value, do: "ABC" <> <<0xffff :: 16>> <> "DEF"
+
+            it "throws {:badarg, :value, :invalid}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :invalid})
+            end
+          end
+
           context "but value contains null bytes" do
             let :value, do: "ABC" <> << 0 >> <> "DEF"
 
