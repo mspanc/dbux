@@ -572,5 +572,70 @@ defmodule DBux.ValueSpec do
         end
       end
     end
+
+
+    context "if passed 'signature' value" do
+      let :type, do: :signature
+
+      context "that is valid" do
+        context "and represented as string" do
+          let :value, do: "yyyyuua(yv)"
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 1-byte length plus NUL terminator" do
+              expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-little >>) + 1 + 1
+            end
+
+            it "should return bitstring containing its byte length (including NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
+              expect(result).to eq(<< byte_size(value) + 1 :: unit(8)-size(1)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 1-byte length plus NUL terminator" do
+              expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-big >>) + 1 + 1
+            end
+
+            it "should return bitstring containing its byte length (including NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
+              expect(result).to eq(<< byte_size(value) + 1 :: unit(8)-size(1)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
+            end
+          end
+        end
+      end
+
+      context "that is invalid" do
+        context "and represented as string" do
+          context "but value contains null bytes" do
+            let :value, do: "ABC" <> << 0 >> <> "DEF"
+
+            it "throws {:badarg, :value, :invalid}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :invalid})
+            end
+          end
+
+          context "but value's byte representation is longer than 0xFE" do
+            let :value, do: String.duplicate("i", 0xFE + 1)
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+
+          pending "but value contains signature of invalid syntax"
+        end
+      end
+    end
   end
 end
