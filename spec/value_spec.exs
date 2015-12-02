@@ -617,6 +617,69 @@ defmodule DBux.ValueSpec do
     end
 
 
+    context "if passed 'unix_fd' value" do
+      let :type, do: :unix_fd
+
+      context "that is valid" do
+        context "and represented as integer" do
+          let :value, do: 85555
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 4-byte long bitstring" do
+              expect(byte_size(result)).to eq 4
+            end
+
+            it "should return bitstring containing its little-endian representation" do
+              expect(result).to eq <<value :: size(4)-unit(8)-unsigned-little >>
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 4-byte long bitstring" do
+              expect(byte_size(result)).to eq 4
+            end
+
+            it "should return bitstring containing its big-endian representation" do
+              expect(result).to eq <<value :: size(4)-unit(8)-unsigned-big >>
+            end
+          end
+        end
+      end
+
+      context "that is invalid" do
+        context "and represented as integer" do
+          context "but value is smaller than 0" do
+            let :value, do: -1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+
+          context "but value is larger than 0xFFFFFFFF" do
+            let :value, do: 0xFFFFFFFF + 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+        end
+      end
+    end
+
+
     context "if passed 'object_path' value" do
       let :type, do: :object_path
 
