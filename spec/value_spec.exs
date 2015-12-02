@@ -505,6 +505,49 @@ defmodule DBux.ValueSpec do
     end
 
 
+    context "if passed 'double' value" do
+      let :type, do: :double
+
+      context "that is valid" do
+        context "and represented as float" do
+          let :value, do: 312321321321.1312321321
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 8-byte long bitstring" do
+              expect(byte_size(result)).to eq 8
+            end
+
+            it "should return bitstring containing its little-endian representation" do
+              expect(result).to eq <<value :: float-size(8)-unit(8)-little >>
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 8-byte long bitstring" do
+              expect(byte_size(result)).to eq 8
+            end
+
+            it "should return bitstring containing its big-endian representation" do
+              expect(result).to eq <<value :: float-size(8)-unit(8)-big >>
+            end
+          end
+        end
+      end
+    end
+
+
     context "if passed 'string' value" do
       let :type, do: :string
 
