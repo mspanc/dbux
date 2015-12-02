@@ -1,4 +1,5 @@
-# Introduction
+# DBux
+[![Build Status](https://travis-ci.org/mspanc/dbux.svg?branch=master)](https://travis-ci.org/mspanc/dbux)
 
 DBux provides bindings for [D-Bus](http://dbus.freedesktop.org) IPC
 protocol for the [Elixir](http://elixir-lang.org) programming language.
