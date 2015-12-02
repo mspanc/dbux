@@ -133,14 +133,14 @@ defmodule DBux.Value do
 
   @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
   def marshall(%DBux.Value{type: :string, value: value}, endianness) when is_binary(value) do
-    if Kernel.byte_size(value) > 0xFFFFFFFE, do: throw {:badarg, :value, :outofrange}
+    if Kernel.byte_size(value) > 0xFFFFFFFF, do: throw {:badarg, :value, :outofrange}
     if String.contains?(value, << 0 >>),     do: throw {:badarg, :value, :invalid}
 
     case endianness do
       :little_endian ->
-        marshall(%DBux.Value{type: :uint32, value: Kernel.byte_size(value) + 1}, endianness) <> << value :: binary-unit(8)-little >> <> << 0 >>
+        marshall(%DBux.Value{type: :uint32, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-little >> <> << 0 >>
       :big_endian ->
-        marshall(%DBux.Value{type: :uint32, value: Kernel.byte_size(value) + 1}, endianness) <> << value :: binary-unit(8)-big >> <> << 0 >>
+        marshall(%DBux.Value{type: :uint32, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-big >> <> << 0 >>
     end
   end
 
@@ -154,15 +154,15 @@ defmodule DBux.Value do
 
   @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
   def marshall(%DBux.Value{type: :signature, value: value}, endianness) when is_binary(value) do
-    if Kernel.byte_size(value) > 0xFE,   do: throw {:badarg, :value, :outofrange}
+    if Kernel.byte_size(value) > 0xFF,   do: throw {:badarg, :value, :outofrange}
     if String.contains?(value, << 0 >>), do: throw {:badarg, :value, :invalid}
     # TODO add check if it contains a valid signature
 
     case endianness do
       :little_endian ->
-        marshall(%DBux.Value{type: :byte, value: Kernel.byte_size(value) + 1}, endianness) <> << value :: binary-unit(8)-little >> <> << 0 >>
+        marshall(%DBux.Value{type: :byte, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-little >> <> << 0 >>
       :big_endian ->
-        marshall(%DBux.Value{type: :byte, value: Kernel.byte_size(value) + 1}, endianness) <> << value :: binary-unit(8)-big >> <> << 0 >>
+        marshall(%DBux.Value{type: :byte, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-big >> <> << 0 >>
     end
   end
 end

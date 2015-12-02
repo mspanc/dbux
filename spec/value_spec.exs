@@ -566,8 +566,8 @@ defmodule DBux.ValueSpec do
               expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-little >>) + 4 + 1
             end
 
-            it "should return bitstring containing its byte length (including NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) + 1 :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
             end
           end
 
@@ -582,8 +582,8 @@ defmodule DBux.ValueSpec do
               expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-big >>) + 4 + 1
             end
 
-            it "should return bitstring containing its byte length (including NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) + 1 :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
             end
           end
         end
@@ -600,9 +600,9 @@ defmodule DBux.ValueSpec do
           end
 
           # FIXME this does not work
-          xcontext "but value's byte representation is longer than 0xFFFFFFFE" do
+          xcontext "but value's byte representation is longer than 0xFFFFFFFF" do
             before do
-              allow(Kernel).to accept(:byte_size, fn(_) -> 0xFFFFFFFE + 1 end)
+              allow(Kernel).to accept(:byte_size, fn(_) -> 0xFFFFFFFF + 1 end)
             end
 
             let :value, do: "anything as we mock String.length because generating string that is so long kills the VM"
@@ -698,8 +698,8 @@ defmodule DBux.ValueSpec do
               expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-little >>) + 4 + 1
             end
 
-            it "should return bitstring containing its byte length (including NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) + 1 :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
             end
           end
 
@@ -714,8 +714,8 @@ defmodule DBux.ValueSpec do
               expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-big >>) + 4 + 1
             end
 
-            it "should return bitstring containing its byte length (including NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) + 1 :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
             end
           end
         end
@@ -769,8 +769,8 @@ defmodule DBux.ValueSpec do
               expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-little >>) + 1 + 1
             end
 
-            it "should return bitstring containing its byte length (including NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) + 1 :: unit(8)-size(1)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(1)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
             end
           end
 
@@ -785,8 +785,8 @@ defmodule DBux.ValueSpec do
               expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-big >>) + 1 + 1
             end
 
-            it "should return bitstring containing its byte length (including NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) + 1 :: unit(8)-size(1)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(1)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
             end
           end
         end
@@ -802,8 +802,8 @@ defmodule DBux.ValueSpec do
             end
           end
 
-          context "but value's byte representation is longer than 0xFE" do
-            let :value, do: String.duplicate("i", 0xFE + 1)
+          context "but value's byte representation is longer than 0xFF" do
+            let :value, do: String.duplicate("i", 0xFF + 1)
 
             it "throws {:badarg, :value, :outofrange}" do
               expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
