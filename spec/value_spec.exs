@@ -36,7 +36,7 @@ defmodule DBux.ValueSpec do
             expect(byte_size(result)).to eq 1
           end
 
-          it "should return bitstring containing its ASCII representation" do
+          it "should return bitstring containing passed integer" do
             expect(result).to eq << 150 >>
           end
         end
@@ -187,7 +187,68 @@ defmodule DBux.ValueSpec do
           end
         end
       end
+    end
 
+    context "if passed 'uint64' value" do
+      let :type, do: :uint64
+
+      context "that is valid" do
+        context "and represented as integer" do
+          let :value, do: 0xABCDEF0123456789
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 8-byte long bitstring" do
+              expect(byte_size(result)).to eq 8
+            end
+
+            it "should return bitstring containing its little-endian representation" do
+              expect(result).to eq <<137, 103, 69, 35, 1, 239, 205, 171>>
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 8-byte long bitstring" do
+              expect(byte_size(result)).to eq 8
+            end
+
+            it "should return bitstring containing its big-endian representation" do
+              expect(result).to eq <<171, 205, 239, 1, 35, 69, 103, 137>>
+            end
+          end
+        end
+      end
+
+      context "that is invalid" do
+        context "and represented as integer" do
+          context "but value is smaller than 0" do
+            let :value, do: -1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+
+          context "but value is larger than 0xFFFFFFFFFFFFFFFF" do
+            let :value, do: 0xFFFFFFFFFFFFFFFF + 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+        end
+      end
     end
   end
 end
