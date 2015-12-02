@@ -139,9 +139,9 @@ defmodule DBux.Value do
 
     case endianness do
       :little_endian ->
-        marshall(%DBux.Value{type: :uint32, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-little >> <> << 0 >>
+        marshall(%DBux.Value{type: :uint32, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-little, 0 >> |> align(4)
       :big_endian ->
-        marshall(%DBux.Value{type: :uint32, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-big >> <> << 0 >>
+        marshall(%DBux.Value{type: :uint32, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-big, 0 >> |> align(4)
     end
   end
 
@@ -162,9 +162,16 @@ defmodule DBux.Value do
 
     case endianness do
       :little_endian ->
-        marshall(%DBux.Value{type: :byte, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-little >> <> << 0 >>
+        marshall(%DBux.Value{type: :byte, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-little, 0 >>
       :big_endian ->
-        marshall(%DBux.Value{type: :byte, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-big >> <> << 0 >>
+        marshall(%DBux.Value{type: :byte, value: Kernel.byte_size(value)}, endianness) <> << value :: binary-unit(8)-big, 0 >>
     end
+  end
+
+
+  defp align(bitstring, bytes) do
+    missing_bytes = bytes - rem(Kernel.byte_size(bitstring), bytes)
+
+    bitstring <> String.duplicate(<< 0 >>, missing_bytes)
   end
 end

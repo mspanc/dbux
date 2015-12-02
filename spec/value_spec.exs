@@ -554,36 +554,39 @@ defmodule DBux.ValueSpec do
       context "that is valid" do
         context "and represented as string" do
           let :value, do: "abcdłóż"
+          let :alignment, do: String.duplicate(<< 0 >> , 4 - rem(length_before_alignment, 4))
 
           context "and endianness is little-endian" do
             let :endianness, do: :little_endian
+            let :length_before_alignment, do: byte_size(<< value :: binary-unit(8)-little >>) + 4 + 1
 
             it "should return a bitstring" do
               expect(result).to be_bitstring
             end
 
-            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator" do
-              expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-little >>) + 4 + 1
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+              expect(byte_size(result)).to eq length_before_alignment + byte_size(alignment)
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >> <> alignment)
             end
           end
 
           context "and endianness is big-endian" do
             let :endianness, do: :big_endian
+            let :length_before_alignment, do: byte_size(<< value :: binary-unit(8)-big >>) + 4 + 1
 
             it "should return a bitstring" do
               expect(result).to be_bitstring
             end
 
-            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator" do
-              expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-big >>) + 4 + 1
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+              expect(byte_size(result)).to eq length_before_alignment + byte_size(alignment)
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator plus alignment" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >> <> alignment)
             end
           end
         end
@@ -690,6 +693,7 @@ defmodule DBux.ValueSpec do
 
     context "if passed 'object_path' value" do
       let :type, do: :object_path
+      let :alignment, do: String.duplicate(<< 0 >> , 4 - rem(length_before_alignment, 4))
 
       context "that is valid" do
         context "and represented as string" do
@@ -697,33 +701,35 @@ defmodule DBux.ValueSpec do
 
           context "and endianness is little-endian" do
             let :endianness, do: :little_endian
+            let :length_before_alignment, do: byte_size(<< value :: binary-unit(8)-little >>) + 4 + 1
 
             it "should return a bitstring" do
               expect(result).to be_bitstring
             end
 
-            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator" do
-              expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-little >>) + 4 + 1
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+              expect(byte_size(result)).to eq length_before_alignment + byte_size(alignment)
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >> <> alignment)
             end
           end
 
           context "and endianness is big-endian" do
             let :endianness, do: :big_endian
+            let :length_before_alignment, do: byte_size(<< value :: binary-unit(8)-big >>) + 4 + 1
 
             it "should return a bitstring" do
               expect(result).to be_bitstring
             end
 
-            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator" do
-              expect(byte_size(result)).to eq byte_size(<< value :: binary-unit(8)-big >>) + 4 + 1
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+              expect(byte_size(result)).to eq length_before_alignment + byte_size(alignment)
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
-              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator plus alignment" do
+              expect(result).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >> <> alignment)
             end
           end
         end
