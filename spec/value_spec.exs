@@ -127,6 +127,69 @@ defmodule DBux.ValueSpec do
     end
 
 
+    context "if passed 'int16' value" do
+      let :type, do: :int16
+
+      context "that is valid" do
+        context "and represented as integer" do
+          let :value, do: -0x3E8
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 2-byte long bitstring" do
+              expect(byte_size(result)).to eq 2
+            end
+
+            it "should return bitstring containing its little-endian representation" do
+              expect(result).to eq <<value :: size(2)-unit(8)-signed-little >>
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 2-byte long bitstring" do
+              expect(byte_size(result)).to eq 2
+            end
+
+            it "should return bitstring containing its big-endian representation" do
+              expect(result).to eq <<value :: size(2)-unit(8)-signed-big >>
+            end
+          end
+        end
+      end
+
+      context "that is invalid" do
+        context "and represented as integer" do
+          context "but value is smaller than -0x8000" do
+            let :value, do: -0x8000 - 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+
+          context "but value is larger than 0x7FFF" do
+            let :value, do: 0x7FFF + 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+        end
+      end
+    end
+
+
     context "if passed 'uint16' value" do
       let :type, do: :uint16
 
@@ -146,7 +209,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its little-endian representation" do
-              expect(result).to eq <<value :: size(2)-unit(8)-little >>
+              expect(result).to eq <<value :: size(2)-unit(8)-unsigned-little >>
             end
           end
 
@@ -162,7 +225,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its big-endian representation" do
-              expect(result).to eq <<value :: size(2)-unit(8)-big >>
+              expect(result).to eq <<value :: size(2)-unit(8)-unsigned-big >>
             end
           end
         end
@@ -178,8 +241,71 @@ defmodule DBux.ValueSpec do
             end
           end
 
-          context "but value is larger than 0xFFFFFFFF" do
+          context "but value is larger than 0xFFFF" do
             let :value, do: 0xFFFF + 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+        end
+      end
+    end
+
+
+    context "if passed 'int32' value" do
+      let :type, do: :int32
+
+      context "that is valid" do
+        context "and represented as integer" do
+          let :value, do: -0x12345678
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 4-byte long bitstring" do
+              expect(byte_size(result)).to eq 4
+            end
+
+            it "should return bitstring containing its little-endian representation" do
+              expect(result).to eq <<value :: size(4)-unit(8)-signed-little >>
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 4-byte long bitstring" do
+              expect(byte_size(result)).to eq 4
+            end
+
+            it "should return bitstring containing its big-endian representation" do
+              expect(result).to eq <<value :: size(4)-unit(8)-signed-big >>
+            end
+          end
+        end
+      end
+
+      context "that is invalid" do
+        context "and represented as integer" do
+          context "but value is smaller than -0x80000000" do
+            let :value, do: -0x80000000 - 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+
+          context "but value is larger than 0x7FFFFFFF" do
+            let :value, do: 0x7FFFFFFF + 1
 
             it "throws {:badarg, :value, :outofrange}" do
               expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
@@ -209,7 +335,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its little-endian representation" do
-              expect(result).to eq <<value :: size(4)-unit(8)-little >>
+              expect(result).to eq <<value :: size(4)-unit(8)-unsigned-little >>
             end
           end
 
@@ -225,7 +351,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its big-endian representation" do
-              expect(result).to eq <<value :: size(4)-unit(8)-big >>
+              expect(result).to eq <<value :: size(4)-unit(8)-unsigned-big >>
             end
           end
         end
@@ -252,6 +378,70 @@ defmodule DBux.ValueSpec do
       end
     end
 
+
+    context "if passed 'int64' value" do
+      let :type, do: :int64
+
+      context "that is valid" do
+        context "and represented as integer" do
+          let :value, do: -0x1234567890ABCDEF
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 8-byte long bitstring" do
+              expect(byte_size(result)).to eq 8
+            end
+
+            it "should return bitstring containing its little-endian representation" do
+              expect(result).to eq <<value :: size(8)-unit(8)-signed-little >>
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 8-byte long bitstring" do
+              expect(byte_size(result)).to eq 8
+            end
+
+            it "should return bitstring containing its big-endian representation" do
+              expect(result).to eq <<value :: size(8)-unit(8)-signed-big >>
+            end
+          end
+        end
+      end
+
+      context "that is invalid" do
+        context "and represented as integer" do
+          context "but value is smaller than -0x8000000000000000" do
+            let :value, do: -0x8000000000000000 - 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+
+          context "but value is larger than 0x7FFFFFFFFFFFFFFF" do
+            let :value, do: 0x7FFFFFFFFFFFFFFF + 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+        end
+      end
+    end
+
+
     context "if passed 'uint64' value" do
       let :type, do: :uint64
 
@@ -271,7 +461,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its little-endian representation" do
-              expect(result).to eq <<value :: size(8)-unit(8)-little >>
+              expect(result).to eq <<value :: size(8)-unit(8)-unsigned-little >>
             end
           end
 
@@ -287,7 +477,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its big-endian representation" do
-              expect(result).to eq <<value :: size(8)-unit(8)-big >>
+              expect(result).to eq <<value :: size(8)-unit(8)-unsigned-big >>
             end
           end
         end
