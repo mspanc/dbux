@@ -31,6 +31,20 @@ defmodule DBux.Value do
 
 
   @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
+  def marshall(%DBux.Value{type: :uint16, value: value}, endianness) when is_integer(value) do
+    if value < 0,      do: throw {:badarg, :value, :outofrange}
+    if value > 0xFFFF, do: throw {:badarg, :value, :outofrange}
+
+    case endianness do
+      :little_endian ->
+        <<value :: size(2)-unit(8)-little >>
+      :big_endian ->
+        <<value :: size(2)-unit(8)-big >>
+    end
+  end
+
+
+  @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
   def marshall(%DBux.Value{type: :uint32, value: value}, endianness) when is_integer(value) do
     if value < 0,          do: throw {:badarg, :value, :outofrange}
     if value > 0xFFFFFFFF, do: throw {:badarg, :value, :outofrange}

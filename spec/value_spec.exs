@@ -127,6 +127,69 @@ defmodule DBux.ValueSpec do
     end
 
 
+    context "if passed 'uint16' value" do
+      let :type, do: :uint16
+
+      context "that is valid" do
+        context "and represented as integer" do
+          let :value, do: 0xABCD
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 2-byte long bitstring" do
+              expect(byte_size(result)).to eq 2
+            end
+
+            it "should return bitstring containing its little-endian representation" do
+              expect(result).to eq <<value :: size(2)-unit(8)-little >>
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return a bitstring" do
+              expect(result).to be_bitstring
+            end
+
+            it "should return 2-byte long bitstring" do
+              expect(byte_size(result)).to eq 2
+            end
+
+            it "should return bitstring containing its big-endian representation" do
+              expect(result).to eq <<value :: size(2)-unit(8)-big >>
+            end
+          end
+        end
+      end
+
+      context "that is invalid" do
+        context "and represented as integer" do
+          context "but value is smaller than 0" do
+            let :value, do: -1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+
+          context "but value is larger than 0xFFFFFFFF" do
+            let :value, do: 0xFFFF + 1
+
+            it "throws {:badarg, :value, :outofrange}" do
+              expect(fn -> result end).to throw_term({:badarg, :value, :outofrange})
+            end
+          end
+        end
+      end
+    end
+
+
     context "if passed 'uint32' value" do
       let :type, do: :uint32
 
@@ -146,7 +209,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its little-endian representation" do
-              expect(result).to eq <<51, 78, 1, 0>>
+              expect(result).to eq <<value :: size(4)-unit(8)-little >>
             end
           end
 
@@ -162,7 +225,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its big-endian representation" do
-              expect(result).to eq <<0, 1, 78, 51>>
+              expect(result).to eq <<value :: size(4)-unit(8)-big >>
             end
           end
         end
@@ -208,7 +271,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its little-endian representation" do
-              expect(result).to eq <<137, 103, 69, 35, 1, 239, 205, 171>>
+              expect(result).to eq <<value :: size(8)-unit(8)-little >>
             end
           end
 
@@ -224,7 +287,7 @@ defmodule DBux.ValueSpec do
             end
 
             it "should return bitstring containing its big-endian representation" do
-              expect(result).to eq <<171, 205, 239, 1, 35, 69, 103, 137>>
+              expect(result).to eq <<value :: size(8)-unit(8)-big >>
             end
           end
         end
