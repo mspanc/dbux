@@ -129,6 +129,13 @@ defmodule DBux.Value do
 
 
   @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
+  def marshall(%DBux.Value{type: :object_path, value: value}, endianness) when is_binary(value) do
+    # TODO add check if it contains a valid object path
+    marshall(%DBux.Value{type: :string, value: value}, endianness)
+  end
+
+
+  @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
   def marshall(%DBux.Value{type: :signature, value: value}, endianness) when is_binary(value) do
     if Kernel.byte_size(value) > 0xFE,   do: throw {:badarg, :value, :outofrange}
     if String.contains?(value, << 0 >>), do: throw {:badarg, :value, :invalid}
