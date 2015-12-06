@@ -1,13 +1,13 @@
 defmodule DBux.WireProtocol do
   def marshall(signature, values, endianness) when is_binary(signature) and is_list(values) do
-    signature_tokens = signature |> String.split("", trim: true)
+    type_codes = signature |> String.split("", trim: true)
 
-    marshall_step(<<>>, signature_tokens, values, endianness)
+    marshall_step(<<>>, type_codes, values, endianness)
   end
 
 
-  defp marshall_step(acc, [signature_token|signature_token_rest], [value|values_rest], endianness) do
-    marshalled_value = case signature_token do
+  defp marshall_step(acc, [type_code|type_codes_rest], [value|values_rest], endianness) do
+    marshalled_value = case type_code do
       "y" -> DBux.Value.marshall(%DBux.Value{type: :byte, value: value}, endianness)
       "b" -> DBux.Value.marshall(%DBux.Value{type: :boolean, value: value}, endianness)
       "n" -> DBux.Value.marshall(%DBux.Value{type: :int16, value: value}, endianness)
@@ -23,7 +23,7 @@ defmodule DBux.WireProtocol do
       "h" -> DBux.Value.marshall(%DBux.Value{type: :unix_fd, value: value}, endianness)
     end
 
-    marshall_step(acc <> marshalled_value, signature_token_rest, values_rest, endianness)
+    marshall_step(acc <> marshalled_value, type_codes_rest, values_rest, endianness)
   end
 
 
@@ -32,12 +32,12 @@ defmodule DBux.WireProtocol do
   end
 
 
-  defp marshall_step(acc, [signature_token|signature_token_rest], [], _) do
+  defp marshall_step(acc, [type_code|type_codes_rest], [], _) do
     {:error, :value_list_too_short}
   end
 
 
   defp marshall_step(acc, [], [], _) do
-    acc
+    {:ok, acc}
   end
 end

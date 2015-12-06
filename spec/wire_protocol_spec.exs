@@ -25,12 +25,13 @@ defmodule DBux.WireProtocolSpec do
           let :unix_fd_value,     do: 33
           let :values, do: [byte_value, boolean_value, int16_value, uint16_value, int32_value, uint32_value, int64_value, uint64_value, double_value, string_value, object_path_value, signature_value, unix_fd_value]
 
-          it "should return a bitstring" do
-            expect(result).to be_bitstring
+          it "should return {:ok, bitstring}" do
+            {:ok, marshalled_value} = result
+            expect(marshalled_value).to be_bitstring
           end
 
-          it "should return bitstring containing concatenated representation of all passed values" do
-            expect(result).to eq(
+          it "should return {:ok, bitstring containing concatenated representation of all passed values}" do
+            expect(result).to eq({:ok,
               DBux.Value.marshall(%DBux.Value{type: :byte,value:  byte_value}, endianness) <>
               DBux.Value.marshall(%DBux.Value{type: :boolean, value: boolean_value}, endianness) <>
               DBux.Value.marshall(%DBux.Value{type: :int16, value: int16_value}, endianness) <>
@@ -44,7 +45,7 @@ defmodule DBux.WireProtocolSpec do
               DBux.Value.marshall(%DBux.Value{type: :object_path, value: object_path_value}, endianness) <>
               DBux.Value.marshall(%DBux.Value{type: :signature, value: signature_value}, endianness) <>
               DBux.Value.marshall(%DBux.Value{type: :unix_fd, value: unix_fd_value}, endianness)
-            )
+            })
           end
         end
       end
