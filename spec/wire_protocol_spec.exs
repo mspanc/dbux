@@ -1,7 +1,7 @@
 defmodule DBux.WireProtocolSpec do
   use ESpec
 
-  context ".marshall/2" do
+  context ".marshall/3" do
     let :result, do: DBux.WireProtocol.marshall(signature, values, endianness)
 
     context "if passed valid signature and accompanying value list" do
