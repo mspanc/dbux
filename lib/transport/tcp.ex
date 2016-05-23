@@ -29,19 +29,19 @@ defmodule DBux.Transport.TCP do
     case :gen_tcp.connect(to_char_list(host), port, [active: true, mode: :binary, packet: :line, keepalive: true, nodelay: true], @connect_timeout) do
       {:ok, sock} ->
         Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Connect: Successfully connected to #{host}:#{port}")
-        {:ok, %{state | sock: sock}}
+        {:ok, %{state | sock: sock, state: :handshake}}
 
       {:error, reason} ->
         Logger.warn("[DBux.Bus #{inspect(self())}] Connect: Failed to connect to #{host}:#{port}: #{inspect(reason)}")
-        {:backoff, @reconnect_timeout, %{state | sock: nil}}
+        {:backoff, @reconnect_timeout, %{state | sock: nil, state: :handshake}}
     end
   end
 
 
-  def disconnect(%{sock: sock} = state) do
+  def disconnect(_, %{sock: sock} = state) do
     Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Disconnect")
     :ok = :gen_tcp.close(sock)
-    {:ok, %{state | sock: nil}}
+    {:backoff, @reconnect_timeout, %{state | sock: nil, state: :handshake}}
   end
 
 
