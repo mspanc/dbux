@@ -9,16 +9,17 @@ defmodule DBux.Transport.TCP do
   @reconnect_timeout 1000
 
 
-  def start_link(%{host: _host, port: _port} = options) do
+  def start_link(parent, %{host: _host, port: _port} = options) do
     Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Start link")
-    Connection.start_link(__MODULE__, options)
+    Connection.start_link(__MODULE__, {parent, options})
   end
 
 
   @doc false
-  def init(options) do
+  def init({parent, options}) do
     Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Init")
     {:ok, options
+      |> Map.put(:parent, parent)
       |> Map.put(:sock, nil)
       |> Map.put(:state, :handshake)}
   end
@@ -54,6 +55,12 @@ defmodule DBux.Transport.TCP do
   def do_send(transport_proc, data) when is_binary(data) do
     Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do send: #{inspect(transport_proc)}")
     Connection.call(transport_proc, {:send, data})
+  end
+
+
+  def do_begin(transport_proc) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do begin: #{inspect(transport_proc)}")
+    Connection.call(transport_proc, :begin)
   end
 
 
@@ -117,8 +124,7 @@ defmodule DBux.Transport.TCP do
   """
   def handle_info({:tcp_closed, _}, state) do
     Logger.warn "[DBux.Bus #{inspect(self())}] TCP connection closed"
-
-    {:disconnect, {:error, :tcp_closed}, %{state | sock: nil}}
+    {:disconnect, {:error, :tcp_closed}, state}
   end
 
 
@@ -128,9 +134,11 @@ defmodule DBux.Transport.TCP do
 
   It alters state with `state: :authenticated`.
   """
-  def handle_info({:tcp, _sock, "OK " <> _}, %{state: :handshake} = state) do
+  def handle_info({:tcp, _sock, "OK " <> _}, %{state: :handshake, parent: parent} = state) do
     Logger.debug "[DBux.Bus #{inspect(self())}] Authentication succeeded"
-    {:noreply, %{state | state: :authenticated}}
+    # TODO send TCP to non-line mode
+    send(parent, :authentication_succeeded)
+    {:noreply, %{state | state: :bus}}
   end
 
 
@@ -140,9 +148,10 @@ defmodule DBux.Transport.TCP do
 
   It always causes disconnect and alters state with `state: :init`.
   """
-  def handle_info({:tcp, _sock, "ERROR " <> reason}, %{state: :handshake} = state) do
+  def handle_info({:tcp, _sock, "ERROR " <> reason}, %{state: :handshake, parent: parent} = state) do
     Logger.warn "[DBux.Bus #{inspect(self())}] Authentication error: #{reason}"
-    {:disconnect, {:error, :rejected}, %{state | state: :init}}
+    send(parent, :authentication_error)
+    {:disconnect, {:error, :authentication_error}, state}
   end
 
 
@@ -150,11 +159,12 @@ defmodule DBux.Transport.TCP do
   Handles asynchronously a line received from DBus Daemon if authentication
   has failed.
 
-  It always causes disconnect and alters state with `state: :new`.
+  It always causes disconnect and alters state with `state: :handshake`.
   """
-  def handle_info({:tcp, _sock, "REJECTED " <> _, reason}, %{state: :new} = state) do
+  def handle_info({:tcp, _sock, "REJECTED " <> _, reason}, %{state: :handshake, parent: parent} = state) do
     Logger.warn "[DBux.Bus #{inspect(self())}] Authentication failed: #{reason}"
-    {:disconnect, {:error, :rejected}, %{state | state: :new}}
+    send(parent, :authentication_failed)
+    {:disconnect, {:error, :authentication_failed}, state}
   end
 
 
@@ -166,6 +176,6 @@ defmodule DBux.Transport.TCP do
   def handle_info({:tcp_error, _, reason}, state) do
     Logger.warn "[DBux.Bus #{inspect(self())}] TCP connection error, reason=#{inspect(reason)}"
 
-    {:disconnect, {:error, reason}, %{state | sock: nil}}
+    {:disconnect, {:error, reason}, state}
   end
 end

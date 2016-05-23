@@ -5,7 +5,7 @@ defmodule DBux.Auth.Anonymous do
   @behaviour DBux.Auth
 
 
-  def start_link(options) do
+  def start_link(_parent, options) do
     Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Start link")
     Connection.start_link(__MODULE__, options)
   end

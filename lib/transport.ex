@@ -1,5 +1,5 @@
 defmodule DBux.Transport do
-  @callback start_link(map) ::
+  @callback start_link(pid, map) ::
     GenServer.on_start
 
 
@@ -8,6 +8,10 @@ defmodule DBux.Transport do
     {:error, any}
 
   @callback do_send(pid, binary) ::
+    :ok |
+    {:error, any}
+
+  @callback do_begin(pid) ::
     :ok |
     {:error, any}
 end
