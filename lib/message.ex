@@ -2,6 +2,13 @@ defmodule DBux.Message do
   defstruct type: nil, path: nil, destination: nil, interface: nil, member: nil, error_name: nil, serial: nil, values: [], signature: nil
   @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t}
 
+  @default_endianness (case << 1 :: size(4)-unit(8)-native >> do
+    << 1 :: size(4)-unit(8)-big >> ->
+      :big_endian
+    << 1 :: size(4)-unit(8)-little >> ->
+      :little_endian
+  end)
+
 
   @spec add_value(%DBux.Message{}, %DBux.Value{}) :: %DBux.Message{}
   def add_value(message, value) when is_map(message) and is_map(value) do
@@ -20,7 +27,7 @@ defmodule DBux.Message do
 
 
   @spec marshall(%DBux.Message{}, :little_endian | :big_endian) :: Bitstring
-  def marshall(message, endianness \\ :little_endian) when is_map(message) and is_atom(endianness) do
+  def marshall(message, endianness \\ @default_endianness) when is_map(message) and is_atom(endianness) do
     # byte
     #	Endianness flag; ASCII 'l' for little-endian or ASCII 'B' for big-endian.
     # Both header and body are in this endianness.
