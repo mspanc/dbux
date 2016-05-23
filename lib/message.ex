@@ -84,34 +84,34 @@ defmodule DBux.Message do
         case message.interface do
           nil ->
             [
-              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :object_path, value: message.path}]},
-              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :string, value: message.member}]}
+              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :variant, subtype: :object_path, value: message.path}]},
+              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :variant, subtype: :string, value: message.member}]}
             ]
 
           _ ->
             [
-              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :object_path, value: message.path}]},
-              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 2}, %DBux.Value{type: :string, value: message.interface}]},
-              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :string, value: message.member}]}
+              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :variant, subtype: :object_path, value: message.path}]},
+              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :variant, subtype: :string, value: message.member}]},
+              %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 2}, %DBux.Value{type: :variant, subtype: :string, value: message.interface}]}
             ]
         end
 
       :method_return ->
         [
-          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 5}, %DBux.Value{type: :uint32, value: message.reply_serial}]}
+          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 5}, %DBux.Value{type: :variant, subtype: :uint32, value: message.reply_serial}]}
         ]
 
       :signal ->
         [
-          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :object_path, value: message.path}]},
-          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 2}, %DBux.Value{type: :string, value: message.interface}]},
-          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :string, value: message.member}]}
+          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :variant, subtype: :object_path, value: message.path}]},
+          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 2}, %DBux.Value{type: :variant, subtype: :string, value: message.interface}]},
+          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :variant, subtype: :string, value: message.member}]}
         ]
 
       :error ->
         [
-          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 4}, %DBux.Value{type: :string, value: message.error_name}]},
-          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 5}, %DBux.Value{type: :uint32, value: message.reply_serial}]}
+          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 4}, %DBux.Value{type: :variant, subtype: :string, value: message.error_name}]},
+          %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 5}, %DBux.Value{type: :variant, subtype: :uint32, value: message.reply_serial}]}
         ]
     end
 
@@ -120,7 +120,7 @@ defmodule DBux.Message do
         header_fields_value
 
       _ ->
-        header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 6}, %DBux.Value{type: :string, value: message.destination}]}]
+        header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 6}, %DBux.Value{type: :variant, subtype: :string, value: message.destination}]}]
     end
 
     header_fields_value = case message.signature do
@@ -128,7 +128,7 @@ defmodule DBux.Message do
         header_fields_value
 
       _ ->
-        header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 8}, %DBux.Value{type: :signature, value: message.signature}]}]
+        header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 8}, %DBux.Value{type: :variant, subtype: :signature, value: message.signature}]}]
     end
 
     header_fields = %DBux.Value{type: :array, subtype: :struct, value: header_fields_value} |> DBux.Value.marshall(endianness)

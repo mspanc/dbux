@@ -155,7 +155,7 @@ defmodule DBux.Value do
 
   @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
   def marshall(%DBux.Value{type: :signature, value: value}, endianness) when is_binary(value) do
-    if byte_size(value) > 0xFF,   do: throw {:badarg, :value, :outofrange}
+    if byte_size(value) > 0xFF,          do: throw {:badarg, :value, :outofrange}
     if String.contains?(value, << 0 >>), do: throw {:badarg, :value, :invalid}
     unless String.valid?(value),         do: throw {:badarg, :value, :invalid}
     # TODO add check if it contains a valid signature
@@ -170,6 +170,31 @@ defmodule DBux.Value do
 
 
   @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
+  def marshall(%DBux.Value{type: :variant, subtype: subtype, value: value}, endianness) do
+    signature = case subtype do
+      :array ->
+        throw :todo # TODO
+
+      :struct ->
+        throw :todo # TODO
+
+      :variant ->
+        throw :todo # TODO
+
+      :dict_entry ->
+        throw :todo # TODO
+
+      _ ->
+        %DBux.Value{type: :signature, value: signature(subtype)} |> marshall(endianness)
+    end
+
+    body = %DBux.Value{type: subtype, value: value} |> marshall(endianness)
+
+    signature <> body
+  end
+
+
+  @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: Bitstring
   def marshall(%DBux.Value{type: :array, subtype: subtype, value: value}, endianness) when is_list(value) do
     body = Enum.reduce(value, << >>, fn(element, acc) ->
       if element.type != subtype, do: throw {:badarg, :value, :invalid}
@@ -179,7 +204,7 @@ defmodule DBux.Value do
 
     length = %DBux.Value{type: :uint32, value: byte_size(body)}
       |> marshall(endianness)
-      |> align(align_size(subtype))
+#      |> align(align_size(subtype))
 
     length <> body
   end
@@ -189,8 +214,8 @@ defmodule DBux.Value do
   def marshall(%DBux.Value{type: :struct, subtype: subtype, value: value}, endianness) when is_list(value) and is_list(subtype) do
     Enum.reduce(value, << >>, fn(element, acc) ->
       # TODO do type and signature check
-      acc <> marshall(element, endianness) |> align(8)
-    end)
+      acc <> marshall(element, endianness)
+    end) |> align(8)
   end
 
 
@@ -212,6 +237,22 @@ defmodule DBux.Value do
   def align_size(:variant),     do: 1
   def align_size(:dict_entry),  do: 8
   def align_size(:unix_fd),     do: 4
+
+
+  @spec signature(atom) :: Bitstring
+  def signature(:byte),        do: << "y" >>
+  def signature(:boolean),     do: << "b" >>
+  def signature(:int16),       do: << "n" >>
+  def signature(:uint16),      do: << "q" >>
+  def signature(:int32),       do: << "i" >>
+  def signature(:uint32),      do: << "u" >>
+  def signature(:int64),       do: << "x" >>
+  def signature(:uint64),      do: << "t" >>
+  def signature(:double),      do: << "d" >>
+  def signature(:string),      do: << "s" >>
+  def signature(:object_path), do: << "o" >>
+  def signature(:signature),   do: << "g" >>
+  def signature(:unix_fd),     do: << "h" >>
 
 
   def align(bitstring, bytes) do
