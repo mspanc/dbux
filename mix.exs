@@ -17,7 +17,7 @@ defmodule DBux.Mixfile do
 
   defp deps do
     [{:connection, "~> 1.0.2"},
-     {:espec, "~> 0.8.7", only: :test}]
+     {:espec, "~> 0.8.21", only: :test}]
   end
 
   defp description do
