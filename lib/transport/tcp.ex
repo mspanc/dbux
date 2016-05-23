@@ -1,78 +1,171 @@
 defmodule DBux.Transport.TCP do
-  use Behaviour
+  require Logger
+
+  use Connection
+
   @behaviour DBux.Transport
 
-  @default_connect_timeout 5000
+  @connect_timeout   5000
+  @reconnect_timeout 1000
 
-  def connect(opts) when is_list(opts) do
-    parsed_opts = parse_opts(opts)
 
-    :gen_tcp.connect(to_char_list(parsed_opts[:hostname]), parsed_opts[:port], [active: true, mode: :binary, packet: :line, keepalive: true, nodelay: true], @default_connect_timeout)
+  def start_link(%{host: _host, port: _port} = options) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Start link")
+    Connection.start_link(__MODULE__, options)
   end
 
 
-  defp parse_opts(opts) do
-    %{}
-    |> extract_mandatory_string_opt(opts, :hostname)
-    |> extract_mandatory_integer_opt(opts, :port, 1, 65535)
+  @doc false
+  def init(options) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Init")
+    {:ok, options
+      |> Map.put(:sock, nil)
+      |> Map.put(:state, :handshake)}
   end
 
 
-  defp extract_mandatory_string_opt(acc, opts, key) do
-    if List.keymember?(opts, key, 0) do
-      if is_binary(opts[key]) do
-        Map.put(acc, key, opts[key])
+  def connect(_, %{host: host, port: port} = state) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Connect: Connecting to #{host}:#{port}")
+    case :gen_tcp.connect(to_char_list(host), port, [active: true, mode: :binary, packet: :line, keepalive: true, nodelay: true], @connect_timeout) do
+      {:ok, sock} ->
+        Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Connect: Successfully connected to #{host}:#{port}")
+        {:ok, %{state | sock: sock}}
 
-      else
-        throw {:badopts, key, :invalidtype}
-      end
-
-    else
-      throw {:badopts, key, :missing}
+      {:error, reason} ->
+        Logger.warn("[DBux.Bus #{inspect(self())}] Connect: Failed to connect to #{host}:#{port}: #{inspect(reason)}")
+        {:backoff, @reconnect_timeout, %{state | sock: nil}}
     end
   end
 
 
-  defp extract_mandatory_integer_opt(acc, opts, key, range_min \\ nil, range_max \\ nil) do
-    if List.keymember?(opts, key, 0) do
-      if is_integer(opts[key]) do
-        cond do
-          is_nil(range_min) and is_nil(range_max) ->
-            Map.put(acc, key, opts[key])
+  def disconnect(%{sock: sock} = state) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Disconnect")
+    :ok = :gen_tcp.close(sock)
+    {:ok, %{state | sock: nil}}
+  end
 
-          is_nil(range_min) ->
-            if opts[key] >= range_min do
-              Map.put(acc, key, opts[key])
-            else
-              throw {:badopts, key, :outofrange}
-            end
 
-          is_nil(range_max) ->
-            if opts[key] <= range_min do
-              Map.put(acc, key, opts[key])
-            else
-              throw {:badopts, key, :outofrange}
-            end
+  def do_connect(transport_proc) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do connect: #{inspect(transport_proc)}")
+    Connection.call(transport_proc, :connect)
+  end
 
-          true ->
-            if opts[key] >= range_min and opts[key] <= range_max do
-              Map.put(acc, key, opts[key])
-            else
-              throw {:badopts, key, :outofrange}
-            end
-        end
 
-      else
-        throw {:badopts, key, :invalidtype}
-      end
+  def do_send(transport_proc, data) when is_binary(data) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do send: #{inspect(transport_proc)}")
+    Connection.call(transport_proc, {:send, data})
+  end
 
-    else
-      throw {:badopts, key, :missing}
+
+  @doc """
+  Handles :connect calls when we are not connected.
+
+  It instructs to connect and replies `:ok` to the sender.
+  """
+  def handle_call(:connect, _sender, %{sock: nil} = state) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Connect while disconnected")
+    {:connect, :call, :ok, state}
+  end
+
+
+  @doc """
+  Handles :connect calls when we are already connected.
+
+  It replies `{:error, :already_connected}` to the sender.
+  """
+  def handle_call(:connect, _sender, state) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Connect while connected")
+    {:reply, {:error, :already_connected}, state}
+  end
+
+
+
+  @doc """
+  Handles :send calls when we are not connected.
+
+  It replies `{:error, :not_connected}` to the sender.
+  """
+  def handle_call({:send, _}, _sender, %{sock: nil} = state) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Send while disconnected")
+    {:reply, {:error, :not_connected}, state}
+  end
+
+
+  @doc """
+  Handles :send calls when we are already connected.
+
+  It replies `:ok` to the sender in case of success,
+  `{:error, reason}` otherwise.
+  """
+  def handle_call({:send, data}, _sender, %{sock: sock} = state) do
+    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Send while connected")
+    case :gen_tcp.send(sock, data) do
+      :ok ->
+        {:reply, :ok, state}
+
+      {:error, reason} ->
+        Logger.warn("[DBux.Bus #{inspect(self())}] Failed to send data: #{inspect(reason)}")
+        {:reply, {:error, reason}, state}
     end
   end
 
 
-  def disconnect(socket) do
-    :gen_tcp.close(socket)
+  @doc """
+  Handles asynchronous callback called when underlying TCP connection was closed.
+
+  It returns `{:disconnect, {:error, :tcp_closed}, state}`.
+  """
+  def handle_info({:tcp_closed, _}, state) do
+    Logger.warn "[DBux.Bus #{inspect(self())}] TCP connection closed"
+
+    {:disconnect, {:error, :tcp_closed}, %{state | sock: nil}}
+  end
+
+
+  @doc """
+  Handles asynchronously a line received from DBus Daemon if authentication
+  has succeeded.
+
+  It alters state with `state: :authenticated`.
+  """
+  def handle_info({:tcp, _sock, "OK " <> _}, %{state: :handshake} = state) do
+    Logger.debug "[DBux.Bus #{inspect(self())}] Authentication succeeded"
+    {:noreply, %{state | state: :authenticated}}
+  end
+
+
+  @doc """
+  Handles asynchronously a line received from DBus Daemon if authentication
+  has caused error.
+
+  It always causes disconnect and alters state with `state: :init`.
+  """
+  def handle_info({:tcp, _sock, "ERROR " <> reason}, %{state: :handshake} = state) do
+    Logger.warn "[DBux.Bus #{inspect(self())}] Authentication error: #{reason}"
+    {:disconnect, {:error, :rejected}, %{state | state: :init}}
+  end
+
+
+  @doc """
+  Handles asynchronously a line received from DBus Daemon if authentication
+  has failed.
+
+  It always causes disconnect and alters state with `state: :new`.
+  """
+  def handle_info({:tcp, _sock, "REJECTED " <> _, reason}, %{state: :new} = state) do
+    Logger.warn "[DBux.Bus #{inspect(self())}] Authentication failed: #{reason}"
+    {:disconnect, {:error, :rejected}, %{state | state: :new}}
+  end
+
+
+  @doc """
+  Handles asynchronous callback called when underlying TCP connection had an error.
+
+  It returns `{:disconnect, {:error, :tcp_error}, state}`.
+  """
+  def handle_info({:tcp_error, _, reason}, state) do
+    Logger.warn "[DBux.Bus #{inspect(self())}] TCP connection error, reason=#{inspect(reason)}"
+
+    {:disconnect, {:error, reason}, %{state | sock: nil}}
   end
 end
