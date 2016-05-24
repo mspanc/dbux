@@ -28,7 +28,9 @@ defmodule MyClientBus do
   use DBux.Bus
 
   def start_link(opts \\ []) do
-    DBux.start_link(__MODULE__, DBux.Transport.TCP, %{host: "example.com", port: 8888}, DBux.Auth.Anonymous, %{})
+    DBux.Bus.start_link(__MODULE__,
+      DBux.Transport.TCP, %{host: "example.com", port: 8888}, 
+      DBux.Auth.Anonymous, %{})
   end
 end
 
