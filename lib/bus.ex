@@ -67,8 +67,8 @@ defmodule DBux.Bus do
   Please note that `{:error, reason}` does not mean error reply over D-Bus, it
   means an internal application error.
   """
-  @spec do_method_call(pid, String.t, String.t, String.t, list, String.t) :: :ok | {:error, any}
-  def do_method_call(bus, path, interface, member, values \\ [], destination) when is_pid(bus) and is_binary(path) and is_binary(interface) and is_binary(member) and is_list(values) and is_binary(destination) do
+  @spec do_method_call(pid, String.t, String.t, String.t, list, String.t | nil) :: :ok | {:error, any}
+  def do_method_call(bus, path, interface, member, values \\ [], destination \\ nil) when is_pid(bus) and is_binary(path) and is_binary(interface) and is_binary(member) and is_list(values) and (is_binary(destination) or is_nil(destination)) do
     Connection.call(bus, {:send_method_call, path, interface, member, values, destination})
   end
 
@@ -138,7 +138,7 @@ defmodule DBux.Bus do
     Logger.debug("[DBux.Bus #{inspect(self())}] Handle info: authentication succeeded")
 
     Logger.debug("[DBux.Bus #{inspect(self())}] Beginning message transmission")
-    case transport_mod.do_send(transport_proc, "BEGIN\r\n") do
+    case transport_mod.do_begin(transport_proc) do
       :ok ->
         Logger.debug("[DBux.Bus #{inspect(self())}] Began message transmission")
 
@@ -180,12 +180,20 @@ defmodule DBux.Bus do
   end
 
 
+  @doc false
+  def handle_info({:receive, data}, %{state: :authenticated} = state) do
+    Logger.debug("[DBux.Bus #{inspect(self())}] Handle info: Received")
 
-  defp send_method_call(path, interface, member, values, destination, %{transport_mod: transport_mod, transport_proc: transport_proc, serial_proc: serial_proc}) do
+    # TODO handle case in which amount of data is smaller than header
+    DBux.Message.unmarshall(data)
+
+    {:noreply, state}
+  end
+
+
+  defp send_message(%DBux.Message{} = message, %{transport_mod: transport_mod, transport_proc: transport_proc, serial_proc: serial_proc}) do
     serial = DBux.Serial.retreive(serial_proc)
-
-    message = %DBux.Message{serial: serial, type: :method_call, path: path, interface: interface, member: member, values: values, destination: destination}
-    {:ok, message_bitstring, _} = message |> DBux.Message.marshall
+    {:ok, message_bitstring, _} = %{message | serial: serial} |> DBux.Message.marshall
 
     case transport_mod.do_send(transport_proc, message_bitstring) do
       :ok ->
@@ -194,6 +202,11 @@ defmodule DBux.Bus do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+
+  defp send_method_call(path, interface, member, values, destination \\ nil, state) do
+    send_message(%DBux.Message{type: :method_call, path: path, interface: interface, member: member, values: values, destination: destination}, state)
   end
 
 

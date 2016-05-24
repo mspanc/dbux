@@ -2,6 +2,8 @@ defmodule DBux.Message do
   defstruct type: nil, path: nil, destination: nil, interface: nil, member: nil, error_name: nil, serial: nil, values: [], signature: nil
   @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t}
 
+  @protocol_version 1
+
   @default_endianness (case << 1 :: size(4)-unit(8)-native >> do
     << 1 :: size(4)-unit(8)-big >> ->
       :big_endian
@@ -65,7 +67,7 @@ defmodule DBux.Message do
     # version of the receiving application does not match, the applications will not
     # be able to communicate and the D-Bus connection must be disconnected.
     # The major protocol version for this version of the specification is 1.
-    header_protocol_bitstring = << 1 >>
+    header_protocol_bitstring = << @protocol_version >>
 
 
     # uint32
@@ -148,5 +150,70 @@ defmodule DBux.Message do
       header_serial_bitstring <>
       header_fields_bitstring
       |> DBux.Value.align(8)
+  end
+
+
+  def unmarshall(data) when is_binary(data) do
+    << endianness_bitstring,
+       message_type_bitstring,
+       header_flags_bitstring,
+       @protocol_version,
+       rest :: binary >> = data
+
+    endianness = case endianness_bitstring do
+      108 ->
+        :little_endian
+
+      66 ->
+        :big_endian
+    end
+
+    message_type = case message_type_bitstring do
+      1 ->
+        :method_call
+      2 ->
+        :method_return
+      3 ->
+        :error
+      4 ->
+        :signal
+    end
+
+    header_flags = header_flags_bitstring # FIXME
+
+    # IO.puts "endianness: #{inspect(endianness)}"
+    # IO.puts "message_type: #{inspect(message_type)}"
+    # IO.puts "header_flags: #{inspect(header_flags)}"
+    # IO.puts "rest: #{inspect(rest)}"
+
+    {header_body_length, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil) do
+      {:ok, header_body_length_value, rest} ->
+        {header_body_length_value.value, rest}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+
+    {header_serial, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil) do
+      {:ok, header_serial_value, rest} ->
+        {header_serial_value.value, rest}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+
+    {header_fields, rest} = case DBux.Value.unmarshall(rest, endianness, :array, {:struct, [:byte, :variant]}) do
+      {:ok, header_fields_value, rest} ->
+        {header_fields_value.value, rest}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+
+    # IO.puts "header_body_length: #{inspect(header_body_length)}"
+    # IO.puts "header_serial: #{inspect(header_serial)}"
+    # IO.puts "header_fields: #{inspect(header_fields)}"
+
+    data
   end
 end
