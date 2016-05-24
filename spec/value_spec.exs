@@ -784,11 +784,9 @@ defmodule DBux.ValueSpec do
       context "that is valid" do
         context "and represented as string" do
           let :value, do: "abcdłóż"
-          let :alignment, do: String.duplicate(<< 0 >> , 4 - rem(length_before_alignment, 4))
 
           context "and endianness is little-endian" do
             let :endianness, do: :little_endian
-            let :length_before_alignment, do: byte_size(<< value :: binary-unit(8)-little >>) + 4 + 1
 
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
@@ -799,25 +797,24 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            xit "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
               {:ok, bitstring, _} = result
-              expect(byte_size(bitstring)).to eq length_before_alignment + byte_size(alignment)
+              expect(byte_size(bitstring)).to eq 16
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
               {:ok, bitstring, _} = result
-              expect(bitstring).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >> <> alignment)
+              expect(bitstring).to eq(<<10, 0, 0, 0, 97, 98, 99, 100, 197, 130, 195, 179, 197, 188, 0, 0>>)
             end
 
-            xit "should return padding set to missing bytes added to match alignment of 4" do
+            it "should return padding set to missing bytes added to match alignment of 4" do
               {:ok, _, padding} = result
-              expect(padding).to eq rem(byte_size(value) -1, 4) # -1 to strip \0 at the end
+              expect(padding).to eq 1
             end
           end
 
           context "and endianness is big-endian" do
             let :endianness, do: :big_endian
-            let :length_before_alignment, do: byte_size(<< value :: binary-unit(8)-big >>) + 4 + 1
 
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
@@ -828,19 +825,19 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            xit "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
               {:ok, bitstring, _} = result
-              expect(byte_size(bitstring)).to eq length_before_alignment + byte_size(alignment)
+              expect(byte_size(bitstring)).to eq 16
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator plus alignment" do
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
               {:ok, bitstring, _} = result
-              expect(bitstring).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >> <> alignment)
+              expect(bitstring).to eq(<<0, 0, 0, 10, 97, 98, 99, 100, 197, 130, 195, 179, 197, 188, 0, 0>>)
             end
 
-            xit "should return padding set to missing bytes added to match alignment of 4" do
+            it "should return padding set to missing bytes added to match alignment of 4" do
               {:ok, _, padding} = result
-              expect(padding).to eq rem(byte_size(value) -1, 4) # -1 to strip \0 at the end
+              expect(padding).to eq 1
             end
           end
         end
@@ -975,7 +972,6 @@ defmodule DBux.ValueSpec do
 
     context "if passed 'object_path' value" do
       let :type, do: :object_path
-      let :alignment, do: String.duplicate(<< 0 >> , 4 - rem(length_before_alignment, 4))
 
       context "that is valid" do
         context "and represented as string" do
@@ -983,7 +979,6 @@ defmodule DBux.ValueSpec do
 
           context "and endianness is little-endian" do
             let :endianness, do: :little_endian
-            let :length_before_alignment, do: byte_size(<< value :: binary-unit(8)-little >>) + 4 + 1
 
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
@@ -994,25 +989,24 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            xit "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
               {:ok, bitstring, _} = result
-              expect(byte_size(bitstring)).to eq length_before_alignment + byte_size(alignment)
+              expect(byte_size(bitstring)).to eq 32
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
               {:ok, bitstring, _} = result
-              expect(bitstring).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >> <> alignment)
+              expect(bitstring).to eq(<<25, 0, 0, 0, 47, 99, 111, 109, 47, 101, 120, 97, 109, 112, 108, 101, 47, 77, 117, 115, 105, 99, 80, 108, 97, 121, 101, 114, 49, 0, 0, 0>>)
             end
 
-            xit "should return padding set to missing bytes added to match alignment of 4" do
+            it "should return padding set to missing bytes added to match alignment of 4" do
               {:ok, _, padding} = result
-              expect(padding).to eq rem(byte_size(value) -1, 4) # -1 to strip \0 at the end
+              expect(padding).to eq 2
             end
           end
 
           context "and endianness is big-endian" do
             let :endianness, do: :big_endian
-            let :length_before_alignment, do: byte_size(<< value :: binary-unit(8)-big >>) + 4 + 1
 
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
@@ -1023,19 +1017,19 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            xit "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
               {:ok, bitstring, _} = result
-              expect(byte_size(bitstring)).to eq length_before_alignment + byte_size(alignment)
+              expect(byte_size(bitstring)).to eq 32
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator plus alignment" do
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
               {:ok, bitstring, _} = result
-              expect(bitstring).to eq(<< byte_size(value) :: unit(8)-size(4)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >> <> alignment)
+              expect(bitstring).to eq(<<0, 0, 0, 25, 47, 99, 111, 109, 47, 101, 120, 97, 109, 112, 108, 101, 47, 77, 117, 115, 105, 99, 80, 108, 97, 121, 101, 114, 49, 0, 0, 0>>)
             end
 
-            xit "should return padding set to missing bytes added to match alignment of 4" do
+            it "should return padding set to missing bytes added to match alignment of 4" do
               {:ok, _, padding} = result
-              expect(padding).to eq rem(byte_size(value) -1, 4) # -1 to strip \0 at the end
+              expect(padding).to eq 2
             end
           end
         end
@@ -1100,14 +1094,14 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            xit "should return bitstring that uses appropriate length for storing UTF-8 characters plus 1-byte length plus NUL terminator" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 1-byte length plus NUL terminator" do
               {:ok, bitstring, _} = result
-              expect(byte_size(bitstring)).to eq byte_size(<< value :: binary-unit(8)-little >>) + 1 + 1
+              expect(byte_size(bitstring)).to eq 13
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
               {:ok, bitstring, _} = result
-              expect(bitstring).to eq(<< byte_size(value) :: unit(8)-size(1)-unsigned-little >> <> << value :: binary-unit(8)-little >> <> << 0 >>)
+              expect(bitstring).to eq(<<11, 121, 121, 121, 121, 117, 117, 97, 40, 121, 118, 41, 0>>)
             end
 
             it "should return padding set to 0" do
@@ -1119,23 +1113,14 @@ defmodule DBux.ValueSpec do
           context "and endianness is big-endian" do
             let :endianness, do: :big_endian
 
-            it "should return a tuple of format {:ok, bitstring, padding_size}" do
-              expect(result).to be_tuple
-
-              {status, bitstring, padding_size} = result
-              expect(status).to eq :ok
-              expect(bitstring).to be_bitstring
-              expect(padding_size).to be_number
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 1-byte length plus NUL terminator" do
+              {:ok, bitstring, _} = result
+              expect(byte_size(bitstring)).to eq 13
             end
 
-            xit "should return bitstring that uses appropriate length for storing UTF-8 characters plus 1-byte length plus NUL terminator" do
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
               {:ok, bitstring, _} = result
-              expect(byte_size(bitstring)).to eq byte_size(<< value :: binary-unit(8)-big >>) + 1 + 1
-            end
-
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus big-endian representation plus NUL terminator" do
-              {:ok, bitstring, _} = result
-              expect(bitstring).to eq(<< byte_size(value) :: unit(8)-size(1)-unsigned-big >> <> << value :: binary-unit(8)-big >> <> << 0 >>)
+              expect(bitstring).to eq(<<11, 121, 121, 121, 121, 117, 117, 97, 40, 121, 118, 41, 0>>)
             end
 
             it "should return padding set to 0" do
