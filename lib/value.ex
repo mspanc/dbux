@@ -26,7 +26,7 @@ defmodule DBux.Value do
       marshall(%DBux.Value{type: :uint32, value: 1}, endianness)
     else
       marshall(%DBux.Value{type: :uint32, value: 0}, endianness)
-    end |> align(:boolean)
+    end
   end
 
 

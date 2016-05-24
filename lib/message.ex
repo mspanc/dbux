@@ -2,13 +2,12 @@ defmodule DBux.Message do
   defstruct type: nil, path: nil, destination: nil, interface: nil, member: nil, error_name: nil, serial: nil, values: [], signature: nil
   @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t}
 
-  @default_endianness :little_endian
-  # @default_endianness (case << 1 :: size(4)-unit(8)-native >> do
-  #   << 1 :: size(4)-unit(8)-big >> ->
-  #     :big_endian
-  #   << 1 :: size(4)-unit(8)-little >> ->
-  #     :little_endian
-  # end)
+  @default_endianness (case << 1 :: size(4)-unit(8)-native >> do
+    << 1 :: size(4)-unit(8)-big >> ->
+      :big_endian
+    << 1 :: size(4)-unit(8)-little >> ->
+      :little_endian
+  end)
 
 
   @spec add_value(%DBux.Message{}, %DBux.Value{}) :: %DBux.Message{}
