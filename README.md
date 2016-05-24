@@ -23,57 +23,20 @@ Project in the early stage of development. API may change without prior warning.
 
 # Sample Usage
 
-```
-defmodule MyBus do
+```elixir
+defmodule MyClientBus do
   use DBux.Bus
 
-  def start_link(opts) do
-    DBux.Bus.start_link(opts)
+  def start_link(opts \\ []) do
+    DBux.start_link(__MODULE__, DBux.Transport.TCP, %{host: "example.com", port: 8888}, DBux.Auth.Anonymous, %{})
   end
+end
 
 
-  def init(opts) do
-    {:ok, :session}
-  end
-
-
-  def handle_connected(...) do
-
-  end
-
-
-  def handle_disconnected(...) do
-
-  end
-
-
-  def handle_name_acquired(...) do
-
-  end
-
-
-  def handle_name_error(...) do
-
-  end
-
-
-  def handle_name_lost(...) do
-
-  end
-
-
-  def handle_remote_signal(...) do
-
-  end
-
-
-  def handle_remote_method_error(...) do
-
-  end
-
-
-  def handle_remote_method_reply(...) do
-
+defmodule MyExampleApp do
+  def send_message_call do
+    {:ok, bus} = MyClientBus.start_link
+    {:ok, serial} = DBux.Bus.do_method_call(bus, "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus")
   end
 end
 ```

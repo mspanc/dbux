@@ -122,8 +122,9 @@ defmodule DBux.Transport.TCP do
 
   It returns `{:disconnect, {:error, :tcp_closed}, state}`.
   """
-  def handle_info({:tcp_closed, _}, state) do
+  def handle_info({:tcp_closed, _}, %{parent: parent} = state) do
     Logger.warn "[DBux.Bus #{inspect(self())}] TCP connection closed"
+    send(parent, :transport_down)
     {:disconnect, {:error, :tcp_closed}, state}
   end
 
@@ -173,9 +174,9 @@ defmodule DBux.Transport.TCP do
 
   It returns `{:disconnect, {:error, :tcp_error}, state}`.
   """
-  def handle_info({:tcp_error, _, reason}, state) do
+  def handle_info({:tcp_error, _, reason}, %{parent: parent} = state) do
     Logger.warn "[DBux.Bus #{inspect(self())}] TCP connection error, reason=#{inspect(reason)}"
-
+    send(parent, :transport_down)
     {:disconnect, {:error, reason}, state}
   end
 end
