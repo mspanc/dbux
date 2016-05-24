@@ -1,6 +1,6 @@
 defmodule DBux.Message do
-  defstruct type: nil, path: nil, destination: nil, interface: nil, member: nil, error_name: nil, serial: nil, values: [], signature: nil
-  @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t}
+  defstruct type: nil, path: nil, destination: nil, interface: nil, member: nil, error_name: nil, serial: nil, values: [], signature: nil, sender: nil
+  @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t, sender: String.t}
 
   @protocol_version 1
 
