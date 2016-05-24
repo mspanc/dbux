@@ -51,7 +51,8 @@ defmodule DBux.Bus do
       transport_proc: nil,
       auth_mod:       auth_mod,
       auth_opts:      auth_opts,
-      auth_proc:      nil
+      auth_proc:      nil,
+      serial_proc:    nil
     }
 
     Connection.start_link(__MODULE__, initial_state)
@@ -62,7 +63,9 @@ defmodule DBux.Bus do
   Causes bus to synchronously send method call to given path, interface,
   destination, with values passed as message parameters.
 
-  It returns `:ok` in case of success, `{:error, reason}` otherwise.
+  It returns `{:ok, serial}` in case of success, `{:error, reason}` otherwise.
+  Please note that `{:error, reason}` does not mean error reply over D-Bus, it
+  means an internal application error.
   """
   @spec do_method_call(pid, String.t, String.t, String.t, list, String.t) :: :ok | {:error, any}
   def do_method_call(bus, path, interface, member, values \\ [], destination) when is_pid(bus) and is_binary(path) and is_binary(interface) and is_binary(member) and is_list(values) and is_binary(destination) do
@@ -75,12 +78,14 @@ defmodule DBux.Bus do
     Logger.debug("[DBux.Bus #{inspect(self())}] Init")
 
     {:ok, transport_proc} = transport_mod.start_link(self(), transport_opts)
-    {:ok, auth_proc} = auth_mod.start_link(self(), auth_opts)
+    {:ok, auth_proc}      = auth_mod.start_link(self(), auth_opts)
+    {:ok, serial_proc}    = DBux.Serial.start_link()
 
     {:connect, :init,
       %{state |
         transport_proc: transport_proc,
-        auth_proc:      auth_proc}}
+        auth_proc:      auth_proc,
+        serial_proc:    serial_proc}}
   end
 
 
@@ -111,8 +116,8 @@ defmodule DBux.Bus do
   def handle_call({:send_method_call, path, interface, member, values, destination}, _sender, %{state: :authenticated} = state) do
     Logger.debug("[DBux.Bus #{inspect(self())}] Handle call: send method call when authenticated")
     case send_method_call(path, interface, member, values, destination, state) do
-      :ok ->
-        {:reply, :ok, state}
+      {:ok, serial} ->
+        {:reply, {:ok, serial}, state}
 
       {:error, reason} ->
         Logger.warn("[DBux.Bus #{inspect(self())}] Failed to send method call: #{inspect(reason)}")
@@ -139,7 +144,7 @@ defmodule DBux.Bus do
 
         Logger.debug("[DBux.Bus #{inspect(self())}] Sending Hello")
         case send_hello(state) do
-          :ok ->
+          {:ok, _} ->
             {:noreply, %{state | state: :authenticated}}
 
           {:error, reason} ->
@@ -176,11 +181,19 @@ defmodule DBux.Bus do
 
 
 
-  defp send_method_call(path, interface, member, values, destination, %{transport_mod: transport_mod, transport_proc: transport_proc} = state) do
-    # FIXME get serial from agent
-    message = %DBux.Message{serial: 1, type: :method_call, path: path, interface: interface, member: member, values: values, destination: destination}
+  defp send_method_call(path, interface, member, values, destination, %{transport_mod: transport_mod, transport_proc: transport_proc, serial_proc: serial_proc}) do
+    serial = DBux.Serial.retreive(serial_proc)
+
+    message = %DBux.Message{serial: serial, type: :method_call, path: path, interface: interface, member: member, values: values, destination: destination}
     {:ok, message_bitstring, _} = message |> DBux.Message.marshall
-    transport_mod.do_send(transport_proc, message_bitstring)
+
+    case transport_mod.do_send(transport_proc, message_bitstring) do
+      :ok ->
+        {:ok, serial}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
 
