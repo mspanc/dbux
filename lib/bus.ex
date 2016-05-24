@@ -74,7 +74,8 @@ defmodule DBux.Bus do
 
   def handle_call({:message, message}, _sender, %{transport_mod: transport_mod, transport_proc: transport_proc, state: :authenticated} = state) do
     Logger.debug("[DBux.Bus #{inspect(self())}] Handle call: message")
-    case transport_mod.do_send(transport_proc, message |> DBux.Message.marshall(:little_endian)) do
+    {:ok, message_bitstring, _} = message |> DBux.Message.marshall(:little_endian)
+    case transport_mod.do_send(transport_proc, message_bitstring) do
       :ok ->
         {:reply, :ok, state}
 

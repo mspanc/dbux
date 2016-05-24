@@ -2,12 +2,13 @@ defmodule DBux.Message do
   defstruct type: nil, path: nil, destination: nil, interface: nil, member: nil, error_name: nil, serial: nil, values: [], signature: nil
   @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t}
 
-  @default_endianness (case << 1 :: size(4)-unit(8)-native >> do
-    << 1 :: size(4)-unit(8)-big >> ->
-      :big_endian
-    << 1 :: size(4)-unit(8)-little >> ->
-      :little_endian
-  end)
+  @default_endianness :little_endian
+  # @default_endianness (case << 1 :: size(4)-unit(8)-native >> do
+  #   << 1 :: size(4)-unit(8)-big >> ->
+  #     :big_endian
+  #   << 1 :: size(4)-unit(8)-little >> ->
+  #     :little_endian
+  # end)
 
 
   @spec add_value(%DBux.Message{}, %DBux.Value{}) :: %DBux.Message{}
@@ -16,12 +17,12 @@ defmodule DBux.Message do
   end
 
 
-  def method_call(serial, path, interface, member, values \\ [], destination \\ nil) do
+  def method_call(serial, path, interface, member, values \\ [], destination \\ nil) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(values) and (is_binary(destination) or is_nil(destination)) do
     %DBux.Message{serial: serial, type: :method_call, path: path, interface: interface, member: member, values: values, destination: destination}
   end
 
 
-  def signal(serial, path, interface, member, values \\ []) do
+  def signal(serial, path, interface, member, values \\ []) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(values) do
     %DBux.Message{serial: serial, type: :signal, path: path, interface: interface, member: member, values: values}
   end
 
@@ -31,33 +32,33 @@ defmodule DBux.Message do
     # byte
     #	Endianness flag; ASCII 'l' for little-endian or ASCII 'B' for big-endian.
     # Both header and body are in this endianness.
-    header_endianness = case endianness do
+    header_endianness_bitstring = case endianness do
       :little_endian ->
-        <<"l">>
+        << "l" >>
       :big_endian ->
-        <<"B">>
+        << "B" >>
     end
 
 
     # byte
     # Message type. Unknown types must be ignored. Currently-defined types
     # are described below.
-    header_message_type = case message.type do
+    header_message_type_bitstring = case message.type do
       :method_call ->
-        <<1>>
+        << 1 >>
       :method_return ->
-        <<2>>
+        << 2 >>
       :error ->
-        <<3>>
+        << 3 >>
       :signal ->
-        <<4>>
+        << 4 >>
     end
 
 
     # byte
     # Bitwise OR of flags. Unknown flags must be ignored. Currently-defined
     # flags are described below.
-    header_flags = <<0>> # TODO So far we do not support any flags
+    header_flags_bitstring = << 0 >> # TODO So far we do not support any flags
 
 
     # byte
@@ -65,21 +66,21 @@ defmodule DBux.Message do
     # version of the receiving application does not match, the applications will not
     # be able to communicate and the D-Bus connection must be disconnected.
     # The major protocol version for this version of the specification is 1.
-    header_protocol = <<1>>
+    header_protocol_bitstring = << 1 >>
 
 
     # uint32
     # Length in bytes of the message body, starting from the end of the header.
     # The header ends after its alignment padding to an 8-boundary.
     #
-    header_body_length = %DBux.Value{type: :uint32, value: 0} |> DBux.Value.marshall(endianness)
+    {:ok, header_body_length_bitstring, _} = %DBux.Value{type: :uint32, value: 0} |> DBux.Value.marshall(endianness)
     # FIXME
 
 
     # uint32
     # The serial of this message, used as a cookie by the sender to identify
     # the reply corresponding to this request. This must not be zero.
-    header_serial = %DBux.Value{type: :uint32, value: message.serial} |> DBux.Value.marshall(endianness)
+    {:ok, header_serial_bitstring, _} = %DBux.Value{type: :uint32, value: message.serial} |> DBux.Value.marshall(endianness)
 
 
     # ARRAY of STRUCT of (BYTE,VARIANT)
@@ -138,8 +139,15 @@ defmodule DBux.Message do
         header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 8}, %DBux.Value{type: :variant, subtype: :signature, value: message.signature}]}]
     end
 
-    header_fields = %DBux.Value{type: :array, subtype: :struct, value: header_fields_value} |> DBux.Value.marshall(endianness)
+    {:ok, header_fields_bitstring, _} = %DBux.Value{type: :array, subtype: :struct, value: header_fields_value} |> DBux.Value.marshall(endianness)
 
-    header_endianness <> header_message_type <> header_flags <> header_protocol <> header_body_length <> header_serial <> header_fields |> DBux.Value.align(8)
+    header_endianness_bitstring <>
+      header_message_type_bitstring <>
+      header_flags_bitstring <>
+      header_protocol_bitstring <>
+      header_body_length_bitstring <>
+      header_serial_bitstring <>
+      header_fields_bitstring
+      |> DBux.Value.align(8)
   end
 end
