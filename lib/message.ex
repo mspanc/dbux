@@ -186,7 +186,7 @@ defmodule DBux.Message do
     # IO.puts "header_flags: #{inspect(header_flags)}"
     # IO.puts "rest: #{inspect(rest)}"
 
-    {header_body_length, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil) do
+    {header_body_length, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
       {:ok, header_body_length_value, rest} ->
         {header_body_length_value.value, rest}
 
@@ -194,7 +194,7 @@ defmodule DBux.Message do
         {:error, reason}
     end
 
-    {header_serial, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil) do
+    {header_serial, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
       {:ok, header_serial_value, rest} ->
         {header_serial_value.value, rest}
 
@@ -202,7 +202,7 @@ defmodule DBux.Message do
         {:error, reason}
     end
 
-    {header_fields, rest} = case DBux.Value.unmarshall(rest, endianness, :array, {:struct, [:byte, :variant]}) do
+    {header_fields, rest} = case DBux.Value.unmarshall(rest, endianness, :array, {:struct, [:byte, :variant]}, 0) do
       {:ok, header_fields_value, rest} ->
         {header_fields_value.value, rest}
 

@@ -331,37 +331,30 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :array, subtype) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling array: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :array, subtype, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling array: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:array) do
-      Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling array: bitstring too short")
+      debug("Unmarshalling array: bitstring too short", depth)
       {:error, :bitstring_too_short}
 
     else
-      {subtype_major, subtype_minor} = case subtype do
-        {subtype_major, subtype_minor} ->
-          {subtype_major, subtype_minor}
-        _ ->
-          {subtype, nil}
-      end
+      {subtype_major, subtype_minor} = split_subtype(subtype)
 
-      case unmarshall(bitstring, endianness, :uint32, nil) do
-        {:ok, length_value, rest} ->
-          length = length_value.value
-          Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling array: length = #{inspect(length)}")
-
-          if byte_size(rest) < length do
-            Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling array: bitstring too short")
+      case unmarshall(bitstring, endianness, :uint32, nil, depth + 1) do
+        {:ok, body_length_value, rest} ->
+          body_length = body_length_value.value
+          if byte_size(rest) < body_length do
+            debug("Unmarshalling array: bitstring too short", depth)
             {:error, :bitstring_too_short}
 
           else
-            padding_size = rem(length, align_size(subtype_major))
-            << array_data_bitstring :: binary-size(length), padding :: binary-size(padding_size), rest :: binary >> = rest
+            padding_size = compute_padding_size(body_length, subtype_major)
+            << body_bitstring :: binary-size(body_length), padding_bitstring :: binary-size(padding_size), rest :: binary >> = rest
+            debug("Unmarshalling array elements: body_length = #{inspect(body_length)}, padding_size = #{inspect(padding_size)}, body_bitstring = #{inspect(body_bitstring)}", depth)
 
-            Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling array elements: array_data_bitstring = #{inspect(array_data_bitstring)}")
-            case parse_array(array_data_bitstring, endianness, subtype_major, subtype_minor, []) do
+            case parse_array(body_bitstring <> padding_bitstring, endianness, subtype_major, subtype_minor, [], depth) do
               {:ok, value} ->
-                Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalled array elements: value = #{inspect(value)}")
+                debug("Unmarshalled array elements: value = #{inspect(value)}", depth)
                 {:ok, %DBux.Value{type: :array, subtype: subtype_major, value: value}, rest}
 
               {:error, error} ->
@@ -376,27 +369,8 @@ defmodule DBux.Value do
   end
 
 
-  defp parse_array(<< >>, _endianness, _subtype_major, _subtype_minor, acc) when is_list(acc) do
-    {:ok, acc}
-  end
-
-
-  defp parse_array(bitstring, endianness, subtype_major, subtype_minor, acc) when is_bitstring(bitstring) and is_list(acc) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling array element: next element, bitstring = #{inspect(bitstring)}, acc = #{inspect(acc)}")
-
-    case unmarshall(bitstring, endianness, subtype_major, subtype_minor) do
-      {:ok, value, rest} ->
-        Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalled array element: value = #{inspect(value)}")
-        parse_array(rest, endianness, subtype_major, subtype_minor, [] ++ [value])
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-
-  def unmarshall(bitstring, endianness, :struct, subtype) when is_binary(bitstring) and is_list(subtype) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling struct: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :struct, subtype, depth) when is_binary(bitstring) and is_list(subtype) and is_atom(endianness) do
+    debug("Unmarshalling struct: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:struct) do
       {:error, :bitstring_too_short}
 
@@ -404,8 +378,8 @@ defmodule DBux.Value do
       {rest, value} = Enum.reduce(subtype, {bitstring, []}, fn(element, acc) ->
         {acc_bitstring, acc_values} = acc
 
-        Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling struct: element = #{inspect(element)}, acc = #{inspect(acc)}")
-        case unmarshall(acc_bitstring, endianness, element, nil) do # TODO support nested compound types
+        debug("Unmarshalling struct: element = #{inspect(element)}, acc = #{inspect(acc)}", depth)
+        case unmarshall(acc_bitstring, endianness, element, nil, depth + 1) do # TODO support nested compound types
           {:ok, value, rest} ->
             {rest, acc_values ++ [value]}
 
@@ -419,18 +393,18 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :variant, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling variant: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :variant, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling variant: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < 1 do
       {:error, :bitstring_too_short}
 
     else
-      case unmarshall(bitstring, endianness, :signature, nil) do
+      case unmarshall(bitstring, endianness, :signature, nil, depth + 1) do
         {:ok, signature_value, rest} ->
-          Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling variant: signature = #{inspect(signature_value)}")
+          debug("Unmarshalling variant: signature = #{inspect(signature_value)}", depth)
 
           {body_type_major, body_type_minor} = type(signature_value.value)
-          case unmarshall(rest, endianness, body_type_major, body_type_minor) do
+          case unmarshall(rest, endianness, body_type_major, body_type_minor, depth + 1) do
             {:ok, body_value, rest} ->
               {:ok, %DBux.Value{type: :variant, subtype: body_type_major, value: body_value}, rest}
 
@@ -445,8 +419,8 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :byte, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling byte: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :byte, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling byte: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:byte) do
       {:error, :bitstring_too_short}
 
@@ -457,8 +431,8 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :uint16, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling uint16: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :uint16, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling uint16: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:uint16) do
       {:error, :bitstring_too_short}
 
@@ -478,8 +452,8 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :int16, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling int16: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :int16, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling int16: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:int16) do
       {:error, :bitstring_too_short}
 
@@ -499,8 +473,8 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :uint32, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling uint32: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :uint32, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling uint32: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:uint32) do
       {:error, :bitstring_too_short}
 
@@ -520,13 +494,13 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :unix_fd, nil) when is_binary(bitstring) and is_atom(endianness) do
-    unmarshall(bitstring, endianness, :uint32, nil)
+  def unmarshall(bitstring, endianness, :unix_fd, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    unmarshall(bitstring, endianness, :uint32, nil, depth)
   end
 
 
-  def unmarshall(bitstring, endianness, :boolean, nil) when is_binary(bitstring) and is_atom(endianness) do
-    case unmarshall(bitstring, endianness, :uint32, nil) do
+  def unmarshall(bitstring, endianness, :boolean, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    case unmarshall(bitstring, endianness, :uint32, nil, depth) do
       {:ok, uint32_value, rest} ->
         case uint32_value do
           0 ->
@@ -541,8 +515,8 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :int32, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling int32: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :int32, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling int32: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:int32) do
       {:error, :bitstring_too_short}
 
@@ -562,8 +536,8 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :uint64, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling uint64: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :uint64, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling uint64: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:uint64) do
       {:error, :bitstring_too_short}
 
@@ -583,8 +557,8 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :int64, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling int64: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :int64, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling int64: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:int64) do
       {:error, :bitstring_too_short}
 
@@ -604,8 +578,8 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :double, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling double: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :double, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling double: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:double) do
       {:error, :bitstring_too_short}
 
@@ -625,18 +599,18 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :signature, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling signature: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :signature, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling signature: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:signature) do
       {:error, :bitstring_too_short}
 
     else
       << length, rest :: binary >> = bitstring
-      Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling signature: length = #{inspect(length)}")
+      debug("Unmarshalling signature: length = #{inspect(length)}", depth)
 
       if length != 0 do
         << body :: binary-size(length), 0, rest :: binary >> = rest
-        Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling signature: body = #{inspect(body)}")
+        debug("Unmarshalling signature: body = #{inspect(body)}", depth)
         {:ok, %DBux.Value{type: :signature, value: body}, rest}
 
       else
@@ -646,27 +620,24 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :string, nil) when is_binary(bitstring) and is_atom(endianness) do
-    Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling string: bitstring = #{inspect(bitstring)}")
+  def unmarshall(bitstring, endianness, :string, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    debug("Unmarshalling string: bitstring = #{inspect(bitstring)}", depth)
     if byte_size(bitstring) < align_size(:string) do
       {:error, :bitstring_too_short}
 
     else
-      case unmarshall(bitstring, endianness, :uint32, nil) do
+      case unmarshall(bitstring, endianness, :uint32, nil, depth + 1) do
         {:ok, length_value, rest} ->
           length = length_value.value
-          Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling string: length = #{inspect(length)}")
-
           if length != 0 do
             if byte_size(rest) < length do
-              Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling string: bitstring too short")
+              debug("Unmarshalling string: bitstring too short", depth)
               {:error, :bitstring_too_short}
 
             else
-              padding_size = rem(length + 1, align_size(:string))
+              padding_size = compute_padding_size(length + 1, :string)
               << body :: binary-size(length), 0, padding :: binary-size(padding_size), rest :: binary >> = rest
-
-              Logger.debug("[DBux.Value #{inspect(self())}] Unmarshalling string: body = #{inspect(body)}")
+              debug("Unmarshalled string: length = #{inspect(length)}, padding_size = #{inspect(padding_size)}, body = #{inspect(body)}", depth)
               {:ok, %DBux.Value{type: :string, value: body}, rest}
             end
 
@@ -681,7 +652,57 @@ defmodule DBux.Value do
   end
 
 
-  def unmarshall(bitstring, endianness, :object_path, nil) when is_binary(bitstring) and is_atom(endianness) do
-    unmarshall(bitstring, endianness, :string, nil)
+  def unmarshall(bitstring, endianness, :object_path, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
+    unmarshall(bitstring, endianness, :string, nil, depth)
+  end
+
+
+  defp parse_array(<< >>, _endianness, _subtype_major, _subtype_minor, acc, _depth) when is_list(acc) do
+    {:ok, acc}
+  end
+
+
+  defp parse_array(bitstring, endianness, subtype_major, subtype_minor, acc, depth) when is_bitstring(bitstring) and is_list(acc) do
+    debug("Unmarshalling array element: next element, bitstring = #{inspect(bitstring)}, subtype_major = #{inspect(subtype_major)}, acc = #{inspect(acc)}", depth)
+
+    case unmarshall(bitstring, endianness, subtype_major, subtype_minor, depth + 1) do
+      {:ok, value, rest} ->
+        parsed_bytes = byte_size(bitstring) - byte_size(rest)
+        padding_size = compute_padding_size(parsed_bytes, subtype_major)
+        << padding :: binary-size(padding_size), rest_without_padding :: binary >> = rest
+        debug("Unmarshalled array element: value = #{inspect(value)}, parsed bytes = #{byte_size(bitstring) - byte_size(rest)}, padding_size = #{inspect(padding_size)}, rest_without_padding = #{inspect(rest_without_padding)}", depth)
+
+        parse_array(rest_without_padding, endianness, subtype_major, subtype_minor, [] ++ [value], depth)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+
+  def compute_padding_size(length, type) do
+    align = align_size(type)
+
+    if length < align do
+      align - length
+    else
+      rem(length, align)
+    end
+  end
+
+
+  defp split_subtype(subtype) do
+    case subtype do
+      {subtype_major, subtype_minor} ->
+        {subtype_major, subtype_minor}
+
+      _ ->
+        {subtype, nil}
+    end
+  end
+
+
+  defp debug(message, depth) when is_number(depth) and is_binary(message) do
+    Logger.debug("[DBux.Value #{inspect(self())}] #{String.duplicate("  ", depth)}#{message}")
   end
 end
