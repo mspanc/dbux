@@ -1,6 +1,20 @@
 defmodule DBux.Message do
-  defstruct type: nil, path: nil, destination: nil, interface: nil, member: nil, error_name: nil, serial: nil, values: [], signature: nil, sender: nil
-  @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t, sender: String.t}
+  defstruct \
+    type:         nil,
+    flags:        nil,
+    path:         nil,
+    destination:  nil,
+    interface:    nil,
+    member:       nil,
+    error_name:   nil,
+    reply_serial: nil,
+    serial:       nil,
+    values:       [],
+    signature:    nil,
+    sender:       nil,
+    unix_fds:     nil
+
+  @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, flags: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t, sender: String.t, unix_fds: number, reply_serial: number}
 
   @protocol_version 1
 
@@ -140,6 +154,14 @@ defmodule DBux.Message do
         header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 8}, %DBux.Value{type: :variant, subtype: :signature, value: message.signature}]}]
     end
 
+    header_fields_value = case message.unix_fds do
+      nil ->
+        header_fields_value
+
+      _ ->
+        header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 9}, %DBux.Value{type: :variant, subtype: :uint32, value: message.unix_fds}]}]
+    end
+
     {:ok, header_fields_bitstring, _} = %DBux.Value{type: :array, subtype: :struct, value: header_fields_value} |> DBux.Value.marshall(endianness)
 
     header_endianness_bitstring <>
@@ -179,14 +201,15 @@ defmodule DBux.Message do
         :signal
     end
 
-    header_flags = header_flags_bitstring # FIXME
+    flags = header_flags_bitstring # FIXME
 
     # IO.puts "endianness: #{inspect(endianness)}"
     # IO.puts "message_type: #{inspect(message_type)}"
     # IO.puts "header_flags: #{inspect(header_flags)}"
     # IO.puts "rest: #{inspect(rest)}"
 
-    {header_body_length, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
+
+    {body_length, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
       {:ok, header_body_length_value, rest} ->
         {header_body_length_value.value, rest}
 
@@ -194,7 +217,7 @@ defmodule DBux.Message do
         {:error, reason}
     end
 
-    {header_serial, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
+    {serial, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
       {:ok, header_serial_value, rest} ->
         {header_serial_value.value, rest}
 
@@ -210,10 +233,34 @@ defmodule DBux.Message do
         {:error, reason}
     end
 
-    # IO.puts "header_body_length: #{inspect(header_body_length)}"
-    # IO.puts "header_serial: #{inspect(header_serial)}"
-    # IO.puts "header_fields: #{inspect(header_fields)}"
+    IO.puts(inspect(header_fields))
 
-    data
+    message = %DBux.Message{ type: message_type, flags: flags, serial: serial }
+
+    message = Enum.reduce(header_fields, message, fn(
+      %DBux.Value{subtype: [:byte, :variant], type: :struct, value: [
+        %DBux.Value{type: :byte, value: header_field_type},
+        %DBux.Value{type: :variant, value: %DBux.Value{value: header_field_value}}]},
+      acc) ->
+
+      message_key = case header_field_type do
+        1 -> :path
+        2 -> :interface
+        3 -> :member
+        4 -> :error_name
+        5 -> :reply_serial
+        6 -> :destination
+        7 -> :sender
+        8 -> :signature
+        9 -> :unix_fds
+      end
+
+      Map.put(message, message_key, header_field_value)
+    end)
+
+    IO.puts inspect(message)
+
+
+    message
   end
 end

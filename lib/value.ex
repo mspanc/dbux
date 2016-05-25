@@ -672,10 +672,11 @@ defmodule DBux.Value do
           << padding :: binary-size(padding_size), rest_without_padding :: binary >> = rest
           if @debug, do: debug("Unmarshalled array element: value = #{inspect(value)}, parsed bytes = #{byte_size(bitstring) - byte_size(rest)}, padding_size = #{inspect(padding_size)}, rest_without_padding = #{inspect(rest_without_padding)}", depth)
 
-          parse_array(rest_without_padding, endianness, subtype_major, subtype_minor, [] ++ [value], depth)
+          parse_array(rest_without_padding, endianness, subtype_major, subtype_minor, acc ++ [value], depth)
+
         else
           if @debug, do: debug("Unmarshalled array element: finish", depth)
-          {:ok, acc}
+          {:ok, acc ++ [value]}
         end
 
       {:error, reason} ->
