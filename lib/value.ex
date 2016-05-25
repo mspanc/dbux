@@ -221,6 +221,12 @@ defmodule DBux.Value do
 
 
   @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: {:ok, Bitstring, number}
+  def marshall(%DBux.Value{type: :dict_entry} = value, endianness) do
+    marshall(value, endianness)
+  end
+
+
+  @spec marshall(%DBux.Value{}, :little_endian | :big_endian) :: {:ok, Bitstring, number}
   def marshall(%DBux.Value{type: :struct, subtype: subtype, value: value}, endianness) when is_list(value) and is_list(subtype) do
     if length(subtype) != length(value), do: throw {:badarg, :value, :signature_and_value_count_mismatch}
 
@@ -232,7 +238,7 @@ defmodule DBux.Value do
       {acc_bitstring <> element_bitstring, element_padding, acc_index + 1}
     end)
 
-    {:ok, struct_bitstring, struct_padding} = body_bitstring |> align(:struct)
+    {:ok, struct_bitstring, _} = body_bitstring |> align(:struct)
     {:ok, struct_bitstring, last_element_padding}
   end
 
@@ -370,6 +376,11 @@ defmodule DBux.Value do
           {:error, error}
       end
     end
+  end
+
+
+  def unmarshall(bitstring, endianness, :dict_entry, subtype, depth) when is_binary(bitstring) and is_list(subtype) and is_atom(endianness) do
+    unmarshall(bitstring, endianness, :struct, subtype, depth)
   end
 
 
