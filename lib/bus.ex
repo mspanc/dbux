@@ -37,7 +37,7 @@ defmodule DBux.Bus do
   `auth_opts` are options that will be passed to authentication module. Refer to
   individual authenticators' docs.
 
-  It returns the same values as `GenServer.start_link`.
+  It returns the same body as `GenServer.start_link`.
   """
   @spec start_link(module, module, map, module, map) :: GenServer.on_start
   def start_link(mod, transport_mod, transport_opts, auth_mod, auth_opts) do
@@ -61,15 +61,15 @@ defmodule DBux.Bus do
 
   @doc """
   Causes bus to synchronously send method call to given path, interface,
-  destination, with values passed as message parameters.
+  destination, poptionally with body.
 
   It returns `{:ok, serial}` in case of success, `{:error, reason}` otherwise.
   Please note that `{:error, reason}` does not mean error reply over D-Bus, it
   means an internal application error.
   """
   @spec do_method_call(pid, String.t, String.t, String.t, list, String.t | nil) :: :ok | {:error, any}
-  def do_method_call(bus, path, interface, member, values \\ [], destination \\ nil) when is_pid(bus) and is_binary(path) and is_binary(interface) and is_binary(member) and is_list(values) and (is_binary(destination) or is_nil(destination)) do
-    Connection.call(bus, {:send_method_call, path, interface, member, values, destination})
+  def do_method_call(bus, path, interface, member, body \\ [], destination \\ nil) when is_pid(bus) and is_binary(path) and is_binary(interface) and is_binary(member) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
+    Connection.call(bus, {:send_method_call, path, interface, member, body, destination})
   end
 
 
@@ -113,9 +113,9 @@ defmodule DBux.Bus do
 
 
   @doc false
-  def handle_call({:send_method_call, path, interface, member, values, destination}, _sender, %{state: :authenticated} = state) do
+  def handle_call({:send_method_call, path, interface, member, body, destination}, _sender, %{state: :authenticated} = state) do
     Logger.debug("[DBux.Bus #{inspect(self())}] Handle call: send method call when authenticated")
-    case send_method_call(path, interface, member, values, destination, state) do
+    case send_method_call(path, interface, member, body, destination, state) do
       {:ok, serial} ->
         {:reply, {:ok, serial}, state}
 
@@ -205,8 +205,8 @@ defmodule DBux.Bus do
   end
 
 
-  defp send_method_call(path, interface, member, values, destination \\ nil, state) do
-    send_message(%DBux.Message{type: :method_call, path: path, interface: interface, member: member, values: values, destination: destination}, state)
+  defp send_method_call(path, interface, member, body, destination \\ nil, state) do
+    send_message(%DBux.Message{type: :method_call, path: path, interface: interface, member: member, body: body, destination: destination}, state)
   end
 
 

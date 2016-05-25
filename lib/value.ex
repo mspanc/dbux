@@ -687,7 +687,14 @@ defmodule DBux.Value do
 
   def compute_padding_size(length, type) do
     align = align_size(type)
-    align - rem(length, align)
+    padding = rem(length, align)
+
+    case padding do
+      0 ->
+        0
+      _ ->
+        align - padding
+    end
   end
 
 

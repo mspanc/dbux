@@ -9,12 +9,25 @@ defmodule DBux.Message do
     error_name:   nil,
     reply_serial: nil,
     serial:       nil,
-    values:       [],
+    body:         [],
     signature:    nil,
     sender:       nil,
     unix_fds:     nil
 
-  @type t :: %DBux.Message{type: :method_call | :method_return | :error | :signal, serial: number, flags: number, path: String.t, destination: String.t, interface: String.t, member: String.t, error_name: String.t, values: [] | [%DBux.Value{}], signature: String.t, sender: String.t, unix_fds: number, reply_serial: number}
+  @type t :: %DBux.Message{
+    type:         :method_call | :method_return | :error | :signal,
+    serial:       number,
+    flags:        number,
+    path:         String.t,
+    destination:  String.t,
+    interface:    String.t,
+    member:       String.t,
+    error_name:   String.t,
+    body:         [] | [%DBux.Value{}],
+    signature:    String.t,
+    sender:       String.t,
+    unix_fds:     number,
+    reply_serial: number}
 
   @protocol_version 1
 
@@ -28,17 +41,17 @@ defmodule DBux.Message do
 
   @spec add_value(%DBux.Message{}, %DBux.Value{}) :: %DBux.Message{}
   def add_value(message, value) when is_map(message) and is_map(value) do
-    %{message | values: message[:values] ++ [value]}
+    %{message | body: message[:body] ++ [value]}
   end
 
 
-  def method_call(serial, path, interface, member, values \\ [], destination \\ nil) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(values) and (is_binary(destination) or is_nil(destination)) do
-    %DBux.Message{serial: serial, type: :method_call, path: path, interface: interface, member: member, values: values, destination: destination}
+  def method_call(serial, path, interface, member, body \\ [], destination \\ nil) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
+    %DBux.Message{serial: serial, type: :method_call, path: path, interface: interface, member: member, body: body, destination: destination}
   end
 
 
-  def signal(serial, path, interface, member, values \\ []) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(values) do
-    %DBux.Message{serial: serial, type: :signal, path: path, interface: interface, member: member, values: values}
+  def signal(serial, path, interface, member, body \\ []) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) do
+    %DBux.Message{serial: serial, type: :signal, path: path, interface: interface, member: member, body: body}
   end
 
 
@@ -233,15 +246,13 @@ defmodule DBux.Message do
         {:error, reason}
     end
 
-    IO.puts(inspect(header_fields))
-
-    message = %DBux.Message{ type: message_type, flags: flags, serial: serial }
+    message = %DBux.Message{type: message_type, flags: flags, serial: serial}
 
     message = Enum.reduce(header_fields, message, fn(
       %DBux.Value{subtype: [:byte, :variant], type: :struct, value: [
         %DBux.Value{type: :byte, value: header_field_type},
-        %DBux.Value{type: :variant, value: %DBux.Value{value: header_field_value}}]},
-      acc) ->
+        %DBux.Value{type: :variant, value: %DBux.Value{value: header_field_value}}
+      ]}, acc) ->
 
       message_key = case header_field_type do
         1 -> :path
@@ -255,7 +266,7 @@ defmodule DBux.Message do
         9 -> :unix_fds
       end
 
-      Map.put(message, message_key, header_field_value)
+      Map.put(acc, message_key, header_field_value)
     end)
 
     IO.puts inspect(message)
