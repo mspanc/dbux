@@ -238,7 +238,7 @@ defmodule DBux.Value do
 
 
   @doc """
-  Returns alignment size for given D-Bus type.
+  Returns alignment size for given D-Connection type.
   """
   @spec align_size(:byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry | :unix_fd) :: number
   def align_size(:byte),        do: 1
@@ -261,7 +261,7 @@ defmodule DBux.Value do
 
 
   @doc """
-  Returns bitstring that contains 1-byte D-Bus signature of given type.
+  Returns bitstring that contains 1-byte D-Connection signature of given type.
 
   Reverse function is `type/1`.
   """

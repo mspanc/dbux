@@ -8,12 +8,12 @@
 # Required-Stop:        $remote_fs $syslog
 # Default-Start:        2 3 4 5
 # Default-Stop:         0 1 6
-# Short-Description:    DBus-based session buses for headless installations
+# Short-Description:    DConnection-based session buses for headless installations
 ### END INIT INFO
 
 set -e
 
-# /etc/init.d/dbus-headless-server: start and stop D-Bus-based session bus
+# /etc/init.d/dbus-headless-server: start and stop D-Connection-based session bus
 #
 # (c) 2011-2015 Marcin Lewandowski <marcin@saepia.net>
 
@@ -27,7 +27,7 @@ ACCOUNT=vagrant
 
 case "$1" in
   start)
-        log_daemon_msg "Starting DBus"
+        log_daemon_msg "Starting DConnection"
 
         account_home=$(eval echo ~$ACCOUNT)
         instance_dir=$account_home/.dbus
@@ -51,7 +51,7 @@ case "$1" in
         ;;
 
   stop)
-        log_daemon_msg "Stopping DBus"
+        log_daemon_msg "Stopping DConnection"
 
         account_home=$(eval echo ~$ACCOUNT)
         instance_dir=$account_home/.dbus

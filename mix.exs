@@ -22,7 +22,7 @@ defmodule DBux.Mixfile do
 
   defp description do
     """
-    D-Bus IPC protocol for Elixir.
+    D-Connection IPC protocol for Elixir.
     """
   end
 

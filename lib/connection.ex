@@ -1,4 +1,4 @@
-defmodule DBux.Bus do
+defmodule DBux.Connection do
   require Logger
   use GenServer
 
@@ -12,14 +12,14 @@ defmodule DBux.Bus do
 
   defmacro __using__(_) do
     quote location: :keep do
-      @behaviour DBux.Bus
+      @behaviour DBux.Connection
 
     end
   end
 
 
   @doc """
-  Connects to the bus run by a D-Bus daemon or other pper using given
+  Connects to the bus run by a D-Connection daemon or other pper using given
   transport and authentication methods.
 
   `mod` is a module that will become a process, similarily how it happens
@@ -41,7 +41,7 @@ defmodule DBux.Bus do
   """
   @spec start_link(module, module, map, module, map) :: GenServer.on_start
   def start_link(mod, transport_mod, transport_opts, auth_mod, auth_opts) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}")
 
     initial_state = %{
       mod:            mod,
@@ -64,7 +64,7 @@ defmodule DBux.Bus do
   destination, poptionally with body.
 
   It returns `{:ok, serial}` in case of success, `{:error, reason}` otherwise.
-  Please note that `{:error, reason}` does not mean error reply over D-Bus, it
+  Please note that `{:error, reason}` does not mean error reply over D-Connection, it
   means an internal application error.
   """
   @spec do_method_call(pid, String.t, String.t, String.t, list, String.t | nil) :: :ok | {:error, any}
@@ -75,7 +75,7 @@ defmodule DBux.Bus do
 
   @doc false
   def init(%{transport_mod: transport_mod, transport_opts: transport_opts, auth_mod: auth_mod, auth_opts: auth_opts} = state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Init")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Init")
 
     {:ok, transport_proc} = transport_mod.start_link(self(), transport_opts)
     {:ok, auth_proc}      = auth_mod.start_link(self(), auth_opts)
@@ -91,22 +91,22 @@ defmodule DBux.Bus do
 
   @doc false
   def connect(_, %{transport_mod: transport_mod, transport_proc: transport_proc, auth_mod: auth_mod, auth_proc: auth_proc} = state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Connecting")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Connecting")
     case transport_mod.do_connect(transport_proc) do
       :ok ->
-        Logger.debug("[DBux.Bus #{inspect(self())}] Authenticating")
+        Logger.debug("[DBux.Connection #{inspect(self())}] Authenticating")
         case auth_mod.do_handshake(auth_proc, transport_mod, transport_proc) do
           :ok ->
-            Logger.debug("[DBux.Bus #{inspect(self())}] Sent authentication request")
+            Logger.debug("[DBux.Connection #{inspect(self())}] Sent authentication request")
             {:ok, %{state | state: :authenticating}}
 
           {:error, _} ->
-            Logger.warn("[DBux.Bus #{inspect(self())}] Failed to send authentication request")
+            Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send authentication request")
             {:backoff, @reconnect_timeout, %{state | state: :init}}
         end
 
       {:error, _} ->
-        Logger.debug("[DBux.Bus #{inspect(self())}] Failed to connect")
+        Logger.debug("[DBux.Connection #{inspect(self())}] Failed to connect")
         {:backoff, @reconnect_timeout, %{state | state: :init}}
     end
   end
@@ -114,13 +114,13 @@ defmodule DBux.Bus do
 
   @doc false
   def handle_call({:send_method_call, path, interface, member, body, destination}, _sender, %{state: :authenticated} = state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Handle call: send method call when authenticated")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when authenticated")
     case send_method_call(path, interface, member, body, destination, state) do
       {:ok, serial} ->
         {:reply, {:ok, serial}, state}
 
       {:error, reason} ->
-        Logger.warn("[DBux.Bus #{inspect(self())}] Failed to send method call: #{inspect(reason)}")
+        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send method call: #{inspect(reason)}")
         {:reply, {:error, reason}, state}
     end
   end
@@ -128,32 +128,32 @@ defmodule DBux.Bus do
 
   @doc false
   def handle_call(_message, _sender, state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Handle call: send method call when not authenticated")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when not authenticated")
     {:reply, {:error, :not_authenticated}, state}
   end
 
 
   @doc false
   def handle_info(:authentication_succeeded, %{state: :authenticating, transport_mod: transport_mod, transport_proc: transport_proc} = state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Handle info: authentication succeeded")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication succeeded")
 
-    Logger.debug("[DBux.Bus #{inspect(self())}] Beginning message transmission")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Beginning message transmission")
     case transport_mod.do_begin(transport_proc) do
       :ok ->
-        Logger.debug("[DBux.Bus #{inspect(self())}] Began message transmission")
+        Logger.debug("[DBux.Connection #{inspect(self())}] Began message transmission")
 
-        Logger.debug("[DBux.Bus #{inspect(self())}] Sending Hello")
+        Logger.debug("[DBux.Connection #{inspect(self())}] Sending Hello")
         case send_hello(state) do
           {:ok, _} ->
             {:noreply, %{state | state: :authenticated}}
 
           {:error, reason} ->
-            Logger.warn("[DBux.Bus #{inspect(self())}] Failed to send Hello: #{inspect(reason)}")
+            Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send Hello: #{inspect(reason)}")
             {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
         end
 
       {:error, reason} ->
-        Logger.warn("[DBux.Bus #{inspect(self())}] Failed to begin message transmission: #{inspect(reason)}")
+        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to begin message transmission: #{inspect(reason)}")
         {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
     end
   end
@@ -161,28 +161,28 @@ defmodule DBux.Bus do
 
   @doc false
   def handle_info(:authentication_failed, %{state: :authenticating} = state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Handle info: authentication failed")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication failed")
     {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info(:authentication_error, %{state: :authenticating} = state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Handle info: authentication error")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication error")
     {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info(:transport_down, state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Handle info: Transport down")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Transport down")
     {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info({:receive, data}, %{state: :authenticated} = state) do
-    Logger.debug("[DBux.Bus #{inspect(self())}] Handle info: Received")
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received")
 
     # TODO handle case in which amount of data is smaller than header
     DBux.Message.unmarshall(data)
@@ -211,6 +211,6 @@ defmodule DBux.Bus do
 
 
   defp send_hello(state) do
-    send_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus", state)
+    send_method_call("/org/freedesktop/DConnection", "org.freedesktop.DConnection", "Hello", [], "org.freedesktop.DConnection", state)
   end
 end

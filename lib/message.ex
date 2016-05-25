@@ -101,7 +101,7 @@ defmodule DBux.Message do
     # byte
     # Major protocol version of the sending application. If the major protocol
     # version of the receiving application does not match, the applications will not
-    # be able to communicate and the D-Bus connection must be disconnected.
+    # be able to communicate and the D-Connection connection must be disconnected.
     # The major protocol version for this version of the specification is 1.
     header_protocol_bitstring = << @protocol_version >>
 

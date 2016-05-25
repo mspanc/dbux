@@ -52,22 +52,22 @@
     - name: Phoenix/Elixir - Fetch & install Elixir
       shell: '[ ! -f /usr/local/bin/iex ] && (wget -O /tmp/elixir.zip https://s3.amazonaws.com/s3.hex.pm/builds/elixir/v1.0.5.zip && mkdir -p /usr/local/elixir && cd /usr/local/elixir && unzip -q /tmp/elixir.zip && chmod +x /usr/local/elixir/bin/* && ln -s -t /usr/local/bin /usr/local/elixir/bin/* && rm /tmp/elixir.zip) || true'
 
-    - name: Ensure that DBus is at the latest version
+    - name: Ensure that DConnection is at the latest version
       apt: pkg=dbus state=latest
       notify:
       - restart dbus-headless-server
 
-    - name: Create DBus headless session server init script
+    - name: Create DConnection headless session server init script
       template: src=dbus-init dest=/etc/init.d/dbus-headless-server owner=root group=root mode=0755
       notify:
       - restart dbus-headless-server
 
-    - name: Create DBus headless session server config script
+    - name: Create DConnection headless session server config script
       template: src=dbus-session.conf dest=/etc/dbus-1/session-headless.conf owner=root group=root mode=0755
       notify:
       - restart dbus-headless-server
 
-    - name: Ensure that DBus is going to start on the boot
+    - name: Ensure that DConnection is going to start on the boot
       service: name=dbus-headless-server enabled=true
 
     - name: Some useful dev tools
