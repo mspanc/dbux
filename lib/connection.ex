@@ -6,14 +6,114 @@ defmodule DBux.Connection do
   @reconnect_timeout 5000
 
 
-  # @callback handle_connected(any) ::
-  #   {:ok, any}
+  @doc """
+  Called when Connection process is first started. `start_link/5` will block
+  until it returns.
+
+  Returning `{:ok, state}` will cause `start_link/5` to return
+  `{:ok, pid}` and the process to enter its loop with state `state`
+  """
+  @callback init(module, map, module, map) ::
+    {:ok, any}
+
+  @doc """
+  Called when connection is ready.
+
+  Returning `{:noreply, state}` will cause to update state with `state`.
+  """
+  @callback handle_up(any) ::
+    {:noreply, any}
+
+  @doc """
+  Called when connection is lost.
+
+  Returning `{:noreply, state}` will cause to update state with `state`.
+  """
+  @callback handle_down(any) ::
+    {:noreply, any}
+
+  @doc """
+  Called when we receive a method call.
+
+  Returning `{:noreply, state}` will cause to update state with `state`.
+  """
+  @callback handle_method_call(number, String.t, String.t, String.t, [] | [%DBux.Value{}], any) ::
+    {:noreply, any}
+
+  @doc """
+  Called when we receive a method return.
+
+  Returning `{:noreply, state}` will cause to update state with `state`.
+  """
+  @callback handle_method_return(number, number, %DBux.Value{}, any) ::
+    {:noreply, any}
+
+  @doc """
+  Called when we receive an error.
+
+  Returning `{:noreply, state}` will cause to update state with `state`.
+  """
+  @callback handle_error(number, number, String.t, any) ::
+    {:noreply, any}
+
+  @doc """
+  Called when we receive a signal.
+
+  Returning `{:noreply, state}` will cause to update state with `state`.
+  """
+  @callback handle_signal(number, String.t, String.t, String.t, any) ::
+    {:noreply, any}
 
 
   defmacro __using__(_) do
     quote location: :keep do
       @behaviour DBux.Connection
 
+      # Default implementations
+
+      @doc false
+      def init(_transport_mod, _transport_opts, _auth_mod, _auth_opts) do
+        {:ok, %{}}
+      end
+
+      @doc false
+      def handle_up(state) do
+        {:noreply, state}
+      end
+
+      @doc false
+      def handle_down(state) do
+        {:noreply, state}
+      end
+
+      @doc false
+      def handle_method_call(_serial, _path, _member, _interface, _values, state) do
+        {:noreply, state}
+      end
+
+      @doc false
+      def handle_method_return(_serial, _reply_serial, return_value, state) do
+        {:noreply, state}
+      end
+
+      @doc false
+      def handle_error(_serial, _reply_serial, _error_name, state) do
+        {:noreply, state}
+      end
+
+      @doc false
+      def handle_signal(_serial, _path, _member, _interface, state) do
+        {:noreply, state}
+      end
+
+      defoverridable [
+        init: 4,
+        handle_up: 1,
+        handle_down: 1,
+        handle_method_call: 6,
+        handle_method_return: 4,
+        handle_error: 4,
+        handle_signal: 5]
     end
   end
 

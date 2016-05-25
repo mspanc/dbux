@@ -57,7 +57,7 @@ defmodule MyClientConnection do
   end
 
   # Called when we receive a method return
-  def handle_method_return(serial, reply_serial, state) do
+  def handle_method_return(serial, reply_serial, return_value, state) do
     # TODO
     {:noreply, state}
   end
