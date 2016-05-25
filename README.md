@@ -39,13 +39,13 @@ defmodule MyClientConnection do
   end
 
   # Called when connection is ready
-  def handle_up(serial, path, member, interface, values, state) do
+  def handle_up(state) do
     # TODO
     {:noreply, state}
   end
 
   # Called when connection is lost
-  def handle_down(serial, path, member, interface, values, state) do
+  def handle_down(state) do
     # TODO
     {:noreply, state}
   end
