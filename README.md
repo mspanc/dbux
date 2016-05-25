@@ -29,16 +29,45 @@ defmodule MyClientBus do
 
   def start_link(opts \\ []) do
     DBux.Bus.start_link(__MODULE__,
-      DBux.Transport.TCP, %{host: "example.com", port: 8888}, 
+      DBux.Transport.TCP, %{host: "example.com", port: 8888},
       DBux.Auth.Anonymous, %{})
+  end
+
+
+  def init(_transport_mod, _transport_opts, _auth_mod, _auth_opts) do
+    {:ok, %{}}
   end
 end
 
 
 defmodule MyExampleApp do
-  def send_message_call do
+  def send_method_call do
     {:ok, bus} = MyClientBus.start_link
     {:ok, serial} = DBux.Bus.do_method_call(bus, "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus")
+  end
+
+
+  def handle_method_call(serial, path, member, interface, values, state) do
+    # TODO
+    {:noreply, state}
+  end
+
+
+  def handle_method_return(serial, reply_serial, state) do
+    # TODO
+    {:noreply, state}
+  end
+
+
+  def handle_error(serial, reply_serial, error_name, state) do
+    # TODO
+    {:noreply, state}
+  end
+
+
+  def handle_signal(serial, path, member, interface, state) do
+    # TODO
+    {:noreply, state}
   end
 end
 ```
