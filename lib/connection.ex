@@ -211,6 +211,6 @@ defmodule DBux.Connection do
 
 
   defp send_hello(state) do
-    send_method_call("/org/freedesktop/DConnection", "org.freedesktop.DConnection", "Hello", [], "org.freedesktop.DConnection", state)
+    send_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus", state)
   end
 end

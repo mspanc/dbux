@@ -161,7 +161,7 @@ defmodule DBux.Transport.TCP do
 
 
   @doc """
-  Handles asynchronously a line received from DConnection Daemon if authentication
+  Handles asynchronously a line received from DBus Daemon if authentication
   has succeeded.
 
   It alters state with `state: :authenticated`.
@@ -175,7 +175,7 @@ defmodule DBux.Transport.TCP do
 
 
   @doc """
-  Handles asynchronously a line received from DConnection Daemon if authentication
+  Handles asynchronously a line received from DBus Daemon if authentication
   has caused error.
 
   It always causes disconnect and alters state with `state: :init`.
@@ -188,7 +188,7 @@ defmodule DBux.Transport.TCP do
 
 
   @doc """
-  Handles asynchronously a line received from DConnection Daemon if authentication
+  Handles asynchronously a line received from DBus Daemon if authentication
   has failed.
 
   It always causes disconnect and alters state with `state: :handshake`.
@@ -201,7 +201,7 @@ defmodule DBux.Transport.TCP do
 
 
   @doc """
-  Handles asynchronously a line received from DConnection Daemon if authentication
+  Handles asynchronously a line received from DBus Daemon if authentication
   has failed.
 
   It always causes disconnect and alters state with `state: :handshake`.

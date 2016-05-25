@@ -43,7 +43,7 @@ end
 defmodule MyExampleApp do
   def send_method_call do
     {:ok, connection} = MyClientConnection.start_link
-    {:ok, serial} = DBux.Connection.do_method_call(connection, "/org/freedesktop/DConnection", "org.freedesktop.DConnection", "Hello", [], "org.freedesktop.DConnection")
+    {:ok, serial} = DBux.Connection.do_method_call(connection, "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus")
   end
 
 

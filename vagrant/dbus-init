@@ -8,7 +8,7 @@
 # Required-Stop:        $remote_fs $syslog
 # Default-Start:        2 3 4 5
 # Default-Stop:         0 1 6
-# Short-Description:    DConnection-based session buses for headless installations
+# Short-Description:    DBus-based session buses for headless installations
 ### END INIT INFO
 
 set -e
@@ -27,7 +27,7 @@ ACCOUNT=vagrant
 
 case "$1" in
   start)
-        log_daemon_msg "Starting DConnection"
+        log_daemon_msg "Starting DBus"
 
         account_home=$(eval echo ~$ACCOUNT)
         instance_dir=$account_home/.dbus
@@ -51,7 +51,7 @@ case "$1" in
         ;;
 
   stop)
-        log_daemon_msg "Stopping DConnection"
+        log_daemon_msg "Stopping DBus"
 
         account_home=$(eval echo ~$ACCOUNT)
         instance_dir=$account_home/.dbus
