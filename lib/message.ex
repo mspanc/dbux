@@ -55,6 +55,15 @@ defmodule DBux.Message do
   end
 
 
+  # TODO add method_return
+  # TODO add error
+
+
+  @doc """
+  Serializes DBux.Message into bitstream using given endianness.
+
+  TODO describe return values
+  """
   @spec marshall(%DBux.Message{}, :little_endian | :big_endian) :: Bitstring
   def marshall(message, endianness \\ @default_endianness) when is_map(message) and is_atom(endianness) do
     # byte
@@ -188,40 +197,40 @@ defmodule DBux.Message do
   end
 
 
-  def unmarshall(data) when is_binary(data) do
+  @doc """
+  Parses bitstream into DBux.Message.
+
+  First byte of the bitstream must be first byte of a message.
+
+  Returns `{:ok, message, rest}` in case of success, where message is
+  a DBux.Message and rest is a remaining part of the given bitstream.
+
+  If not enough data was given it returns `{:error, :bitstring_too_short}`.
+  """
+  @spec unmarshall(Bitstring) :: {:ok, %DBux.Message{}, Bitstring} | {:error, any}
+  def unmarshall(bitstring) when is_binary(bitstring) do
+    # TODO check if we have at least these 4 bytes
     << endianness_bitstring,
        message_type_bitstring,
        header_flags_bitstring,
        @protocol_version,
-       rest :: binary >> = data
+       rest :: binary >> = bitstring
 
     endianness = case endianness_bitstring do
-      108 ->
-        :little_endian
-
-      66 ->
-        :big_endian
+      108 -> :little_endian
+      66  -> :big_endian
     end
 
     message_type = case message_type_bitstring do
-      1 ->
-        :method_call
-      2 ->
-        :method_return
-      3 ->
-        :error
-      4 ->
-        :signal
+      1 -> :method_call
+      2 -> :method_return
+      3 -> :error
+      4 -> :signal
     end
 
     flags = header_flags_bitstring # FIXME
 
-    # IO.puts "endianness: #{inspect(endianness)}"
-    # IO.puts "message_type: #{inspect(message_type)}"
-    # IO.puts "header_flags: #{inspect(header_flags)}"
-    # IO.puts "rest: #{inspect(rest)}"
-
-
+    # FIXME stack this
     {body_length, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
       {:ok, header_body_length_value, rest} ->
         {header_body_length_value.value, rest}
@@ -269,9 +278,12 @@ defmodule DBux.Message do
       Map.put(acc, message_key, header_field_value)
     end)
 
+
+
     IO.puts inspect(message)
 
 
-    message
+
+    {:ok, message}
   end
 end
