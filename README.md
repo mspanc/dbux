@@ -1,16 +1,16 @@
 # DBux
 [![Build Status](https://travis-ci.org/mspanc/dbux.svg?branch=master)](https://travis-ci.org/mspanc/dbux)
 
-DBux provides bindings for [D-Connection](http://dbus.freedesktop.org) IPC
+DBux provides bindings for [D-Bus](http://dbus.freedesktop.org) IPC
 protocol for the [Elixir](http://elixir-lang.org) programming language.
 
 ## Project aims
 
 DBux's aim is to provide low-level GenServer-like pattern to handle interaction
-with D-Connection daemon.
+with D-Bus daemon.
 
 It is not going to provide high-level proxy that will magically map
-objects/interfaces exported over D-Connection to data structures used in your application.
+objects/interfaces exported over D-Bus to data structures used in your application.
 In my opinion it's a task for an another abstraction layer (read: another project
 built on top of DBux).
 

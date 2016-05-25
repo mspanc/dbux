@@ -13,7 +13,7 @@
 
 set -e
 
-# /etc/init.d/dbus-headless-server: start and stop D-Connection-based session bus
+# /etc/init.d/dbus-headless-server: start and stop D-Bus-based session bus
 #
 # (c) 2011-2015 Marcin Lewandowski <marcin@saepia.net>
 

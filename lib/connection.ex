@@ -19,7 +19,7 @@ defmodule DBux.Connection do
 
 
   @doc """
-  Connects to the bus run by a D-Connection daemon or other pper using given
+  Connects to the bus run by a D-Bus daemon or other pper using given
   transport and authentication methods.
 
   `mod` is a module that will become a process, similarily how it happens
@@ -64,7 +64,7 @@ defmodule DBux.Connection do
   destination, poptionally with body.
 
   It returns `{:ok, serial}` in case of success, `{:error, reason}` otherwise.
-  Please note that `{:error, reason}` does not mean error reply over D-Connection, it
+  Please note that `{:error, reason}` does not mean error reply over D-Bus, it
   means an internal application error.
   """
   @spec do_method_call(pid, String.t, String.t, String.t, list, String.t | nil) :: :ok | {:error, any}
