@@ -48,15 +48,22 @@ defmodule DBux.Type do
 
 
   @doc """
-  Parses signature in D-Bus format and returns it as a list.
+  Parses signature in D-Bus format and returns it as a nested list in which
+  simple types are represented as atoms and container types as tuples.
 
-  This is used mostly internally, to convert message signatures into
-  format that is nicer to use later on, and ensure that signature is actually
-  valid.
+  For example, "yba{s(ui)}" will become `[:byte, :boolean, {:array, [{:dict, [:string, {:struct, [:uint32, :int32]}]}]}]`.
 
-  TODO: describe return values
+  First of all, it is much more convenient to have such structure if you want
+  to recursively parse signature in Elixir, so it is used internally while
+  demarshalling messages. It can also serve as validator for signatures.
+
+  It returns `{:ok, list}` in case of success, `{:error, reason}` otherwise.
+
+  It does most of the checks from the specification, but it does not check
+  for dicts constraints at the moment.
   """
   @spec type_from_signature(String.t) :: list_of_types
+  def type_from_signature(""), do: {:ok, []}
   def type_from_signature(signature) when is_binary(signature) do
     parse(signature, [])
   end
