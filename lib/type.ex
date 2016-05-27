@@ -62,6 +62,30 @@ defmodule DBux.Type do
   end
 
 
+  @doc """
+  Returns alignment size for given D-Bus type.
+  """
+  @spec align_size(simple_type) :: number
+  def align_size(:byte),        do: 1
+  def align_size(:boolean),     do: 4
+  def align_size(:int16),       do: 2
+  def align_size(:uint16),      do: 2
+  def align_size(:int32),       do: 4
+  def align_size(:uint32),      do: 4
+  def align_size(:int64),       do: 8
+  def align_size(:uint64),      do: 8
+  def align_size(:double),      do: 8
+  def align_size(:string),      do: 4
+  def align_size(:object_path), do: 4
+  def align_size(:signature),   do: 1
+  def align_size(:array),       do: 4
+  def align_size(:struct),      do: 8
+  def align_size(:variant),     do: 1
+  def align_size(:dict_entry),  do: 8
+  def align_size(:unix_fd),     do: 4
+
+
+
   # ------ TOP LEVEL ------
 
 

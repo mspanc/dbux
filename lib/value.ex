@@ -193,7 +193,7 @@ defmodule DBux.Value do
         throw :todo # TODO
 
       _ ->
-        {:ok, bitstring, _} = %DBux.Value{type: :signature, value: signature(subtype)} |> marshall(endianness)
+        {:ok, bitstring, _} = %DBux.Value{type: :signature, value: DBux.Type.signature(subtype)} |> marshall(endianness)
         bitstring
     end
 
@@ -244,73 +244,6 @@ defmodule DBux.Value do
 
 
   @doc """
-  Returns alignment size for given D-Bus type.
-  """
-  @spec align_size(:byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry | :unix_fd) :: number
-  def align_size(:byte),        do: 1
-  def align_size(:boolean),     do: 4
-  def align_size(:int16),       do: 2
-  def align_size(:uint16),      do: 2
-  def align_size(:int32),       do: 4
-  def align_size(:uint32),      do: 4
-  def align_size(:int64),       do: 8
-  def align_size(:uint64),      do: 8
-  def align_size(:double),      do: 8
-  def align_size(:string),      do: 4
-  def align_size(:object_path), do: 4
-  def align_size(:signature),   do: 1
-  def align_size(:array),       do: 4
-  def align_size(:struct),      do: 8
-  def align_size(:variant),     do: 1
-  def align_size(:dict_entry),  do: 8
-  def align_size(:unix_fd),     do: 4
-
-
-  @doc """
-  Returns bitstring that contains 1-byte D-Bus signature of given type.
-
-  Reverse function is `type/1`.
-  """
-  @spec signature(:byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry | :unix_fd) :: Bitstring
-  def signature(:byte),        do: << "y" >>
-  def signature(:boolean),     do: << "b" >>
-  def signature(:int16),       do: << "n" >>
-  def signature(:uint16),      do: << "q" >>
-  def signature(:int32),       do: << "i" >>
-  def signature(:uint32),      do: << "u" >>
-  def signature(:int64),       do: << "x" >>
-  def signature(:uint64),      do: << "t" >>
-  def signature(:double),      do: << "d" >>
-  def signature(:string),      do: << "s" >>
-  def signature(:object_path), do: << "o" >>
-  def signature(:signature),   do: << "g" >>
-  def signature(:unix_fd),     do: << "h" >>
-  # TODO parse compound types
-
-
-  @doc """
-  Returns atom that contains atom identifying type.
-
-  Reverse function is `signature/1`.
-  """
-  @spec type(Bitstring) :: {:byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry | :unix_fd, nil | list}
-  def type(<< "y" >>), do: { :byte, nil }
-  def type(<< "b" >>), do: { :boolean, nil }
-  def type(<< "n" >>), do: { :int16, nil }
-  def type(<< "q" >>), do: { :uint16, nil }
-  def type(<< "i" >>), do: { :int32, nil }
-  def type(<< "u" >>), do: { :uint32, nil }
-  def type(<< "x" >>), do: { :int64, nil }
-  def type(<< "t" >>), do: { :uint64, nil }
-  def type(<< "d" >>), do: { :double, nil }
-  def type(<< "s" >>), do: { :string, nil }
-  def type(<< "o" >>), do: { :object_path, nil }
-  def type(<< "g" >>), do: { :signature, nil }
-  def type(<< "h" >>), do: { :unix_fd, nil }
-  # TODO parse compound types
-
-
-  @doc """
   Aligns given bitstring to bytes appropriate for given type by adding NULL
   bytes at the end.
 
@@ -318,7 +251,7 @@ defmodule DBux.Value do
   """
   @spec marshall(Bitstring, :byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry) :: {:ok, Bitstring, number}
   def align(bitstring, type) when is_binary(bitstring) and is_atom(type) do
-    align(bitstring, align_size(type))
+    align(bitstring, DBux.Type.align_size(type))
   end
 
 
@@ -343,7 +276,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :array, subtype, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling array: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:array) do
+    if byte_size(bitstring) < DBux.Type.align_size(:array) do
       if @debug, do: debug("Unmarshalling array: bitstring too short", depth)
       {:error, :bitstring_too_short}
 
@@ -386,7 +319,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :struct, subtype, depth) when is_binary(bitstring) and is_list(subtype) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling struct: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:struct) do
+    if byte_size(bitstring) < DBux.Type.align_size(:struct) do
       {:error, :bitstring_too_short}
 
     else
@@ -418,13 +351,26 @@ defmodule DBux.Value do
         {:ok, signature_value, rest} ->
           if @debug, do: debug("Unmarshalling variant: signature = #{inspect(signature_value)}", depth)
 
-          {body_type_major, body_type_minor} = type(signature_value.value)
-          case unmarshall(rest, endianness, body_type_major, body_type_minor, depth + 1) do
-            {:ok, body_value, rest} ->
-              {:ok, %DBux.Value{type: :variant, subtype: body_type_major, value: body_value}, rest}
+          case DBux.Type.type_from_signature(signature_value.value) do
+            {:ok, list_of_types} ->
+              {body_type_major, body_type_minor} = case hd(list_of_types) do
+                {body_type_major, body_type_minor} ->
+                  {body_type_major, body_type_minor}
 
-            {:error, error} ->
-              {:error, error}
+                body_type ->
+                  {body_type, nil}
+              end
+
+              case unmarshall(rest, endianness, body_type_major, body_type_minor, depth + 1) do
+                {:ok, body_value, rest} ->
+                  {:ok, %DBux.Value{type: :variant, subtype: body_type_major, value: body_value}, rest}
+
+                {:error, error} ->
+                  {:error, error}
+              end
+
+            {:error, reason} ->
+              {:error, reason}
           end
 
         {:error, reason} ->
@@ -436,7 +382,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :byte, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling byte: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:byte) do
+    if byte_size(bitstring) < DBux.Type.align_size(:byte) do
       {:error, :bitstring_too_short}
 
     else
@@ -448,7 +394,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :uint16, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling uint16: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:uint16) do
+    if byte_size(bitstring) < DBux.Type.align_size(:uint16) do
       {:error, :bitstring_too_short}
 
     else
@@ -469,7 +415,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :int16, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling int16: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:int16) do
+    if byte_size(bitstring) < DBux.Type.align_size(:int16) do
       {:error, :bitstring_too_short}
 
     else
@@ -490,7 +436,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :uint32, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling uint32: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:uint32) do
+    if byte_size(bitstring) < DBux.Type.align_size(:uint32) do
       {:error, :bitstring_too_short}
 
     else
@@ -532,7 +478,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :int32, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling int32: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:int32) do
+    if byte_size(bitstring) < DBux.Type.align_size(:int32) do
       {:error, :bitstring_too_short}
 
     else
@@ -553,7 +499,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :uint64, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling uint64: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:uint64) do
+    if byte_size(bitstring) < DBux.Type.align_size(:uint64) do
       {:error, :bitstring_too_short}
 
     else
@@ -574,7 +520,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :int64, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling int64: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:int64) do
+    if byte_size(bitstring) < DBux.Type.align_size(:int64) do
       {:error, :bitstring_too_short}
 
     else
@@ -595,7 +541,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :double, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling double: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:double) do
+    if byte_size(bitstring) < DBux.Type.align_size(:double) do
       {:error, :bitstring_too_short}
 
     else
@@ -616,7 +562,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :signature, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling signature: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:signature) do
+    if byte_size(bitstring) < DBux.Type.align_size(:signature) do
       {:error, :bitstring_too_short}
 
     else
@@ -637,7 +583,7 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :string, nil, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling string: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < align_size(:string) do
+    if byte_size(bitstring) < DBux.Type.align_size(:string) do
       {:error, :bitstring_too_short}
 
     else
@@ -697,7 +643,7 @@ defmodule DBux.Value do
 
 
   def compute_padding_size(length, type) do
-    align = align_size(type)
+    align = DBux.Type.align_size(type)
     padding = rem(length, align)
 
     case padding do
