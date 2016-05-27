@@ -2,7 +2,7 @@ defmodule DBux.Value do
   require Logger
 
   defstruct type: nil, value: nil, subtype: nil
-  @type t :: %DBux.Value{type: :byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry | :unix_fd, subtype: :byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry | :unix_fd, value: any}
+  @type t :: %DBux.Value{type: DBux.Type.simple_type, subtype: DBux.Type.simple_type, value: any}
 
   @debug Mix.env != :prod
 
@@ -642,7 +642,7 @@ defmodule DBux.Value do
   end
 
 
-  def compute_padding_size(length, type) do
+  defp compute_padding_size(length, type) do
     align = DBux.Type.align_size(type)
     padding = rem(length, align)
 

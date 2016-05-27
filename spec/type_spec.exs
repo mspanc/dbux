@@ -142,6 +142,135 @@ defmodule DBux.TypeSpec do
     end
 
 
+    context "for signature containing dicts" do
+      context "in case of unfinished dicts" do
+        context "with dict that is opened but not closed" do
+          let :signature, do: "uua{bb"
+
+          it "should return {:error, {:badsignature, :unmatcheddict}}" do
+            expect(described_module.type_from_signature(signature)).to eq {:error, {:badsignature, :unmatcheddict}}
+          end
+        end
+
+        context "with dict that is closed but not opened" do
+          let :signature, do: "uua}bb"
+
+          it "should return {:error, {:badsignature, :unmatcheddict}}" do
+            expect(described_module.type_from_signature(signature)).to eq {:error, {:badsignature, :unmatcheddict}}
+          end
+        end
+      end
+
+      context "in case of empty dicts" do
+        context "with only one empty dict" do
+          let :signature, do: "a{}"
+
+          it "should return {:error, {:badsignature, :emptydict}}" do
+            expect(described_module.type_from_signature(signature)).to eq {:error, {:badsignature, :emptydict}}
+          end
+        end
+
+        context "with only one empty dict embedded between other types" do
+          let :signature, do: "bba{}uu"
+
+          it "should return {:error, {:badsignature, :emptydict}}" do
+            expect(described_module.type_from_signature(signature)).to eq {:error, {:badsignature, :emptydict}}
+          end
+        end
+      end
+
+      context "in case of unwrapped dicts" do
+        context "with only one empty dict" do
+          let :signature, do: "{}"
+
+          it "should return {:error, {:badsignature, :unwrappeddict}}" do
+            expect(described_module.type_from_signature(signature)).to eq {:error, {:badsignature, :unwrappeddict}}
+          end
+        end
+
+        context "with only one empty dict embedded between other types" do
+          let :signature, do: "bb{}uu"
+
+          it "should return {:error, {:badsignature, :unwrappeddict}}" do
+            expect(described_module.type_from_signature(signature)).to eq {:error, {:badsignature, :unwrappeddict}}
+          end
+        end
+      end
+
+      context "in case of valid dicts" do
+        context "for signature containing only one dict with simple types inside" do
+          context "if it is not prefixed or suffixed by any other values" do
+            let :signature, do: "a{bu}"
+
+            it "returns a list of atoms and tuples of appropriate types" do
+              expect(described_module.type_from_signature(signature)).to eq {:ok, [{:array, [{:dict, [:boolean, :uint32]}]}]}
+            end
+          end
+
+          context "if it is prefixed by other simple values" do
+            let :signature, do: "ia{bu}"
+
+            it "returns a list of atoms and tuples of appropriate types" do
+              expect(described_module.type_from_signature(signature)).to eq {:ok, [:int32, {:array, [{:dict, [:boolean, :uint32]}]}]}
+            end
+          end
+
+          context "if it is suffixed by other simple values" do
+            let :signature, do: "a{bu}i"
+
+            it "returns a list of atoms and tuples of appropriate types" do
+              expect(described_module.type_from_signature(signature)).to eq {:ok, [{:array, [{:dict, [:boolean, :uint32]}]}, :int32]}
+            end
+          end
+
+          context "if it is both prefixed suffixed by other simple values" do
+            let :signature, do: "ha{bu}i"
+
+            it "returns a list of atoms and tuples of appropriate types" do
+              expect(described_module.type_from_signature(signature)).to eq {:ok, [:unix_fd, {:array, [{:dict, [:boolean, :uint32]}]}, :int32]}
+            end
+          end
+
+          context "if it is prefixed by other dicts" do
+            let :signature, do: "a{is}a{bu}"
+
+            it "returns a list of atoms and tuples of appropriate types" do
+              expect(described_module.type_from_signature(signature)).to eq {:ok, [{:array, [{:dict, [:int32, :string]}]}, {:array, [{:dict, [:boolean, :uint32]}]}]}
+            end
+          end
+
+          context "if it is suffixed by other dicts" do
+            let :signature, do: "a{bu}a{is}"
+
+            it "returns a list of atoms and tuples of appropriate types" do
+              expect(described_module.type_from_signature(signature)).to eq {:ok, [{:array, [{:dict, [:boolean, :uint32]}]}, {:array, [{:dict, [:int32, :string]}]}]}
+            end
+          end
+
+
+          context "if it is nested" do
+            let :signature, do: "h(bua{ds}i)(o)"
+
+            it "returns a list of atoms and tuples of appropriate types" do
+              expect(described_module.type_from_signature(signature)).to eq {:ok, [
+                :unix_fd,
+                {:struct, [
+                  :boolean,
+                  :uint32,
+                  {:array, [
+                    {:dict, [:double, :string]},
+                  ]},
+                  :int32
+                ]},
+                {:struct, [:object_path]}
+              ]}
+            end
+          end
+        end
+      end
+    end
+
+
     context "for signature containing arrays" do
       context "for array with no type" do
         let :signature, do: "a"

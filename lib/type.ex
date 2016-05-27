@@ -1,8 +1,8 @@
 defmodule DBux.Type do
   @type simple_type    :: :byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry | :unix_fd
   @type container_type :: {simple_type, [simple_type | container_type]}
-  @type any_type       :: simple_type | container_type
-  @type list_of_types  :: [] | [any_type]
+  @type t              :: simple_type | container_type
+  @type list_of_types  :: [] | [t]
 
 
   @doc """
@@ -114,7 +114,7 @@ defmodule DBux.Type do
 
 
   # Top level: Attempt to enter inner recurrence for dict without enclosing array
-  defp parse(<< "{", rest :: binary >>, acc) do
+  defp parse(<< "{", _rest :: binary >>, _acc) do
     {:error, {:badsignature, :unwrappeddict}}
   end
 
@@ -172,7 +172,7 @@ defmodule DBux.Type do
 
 
   # Within struct: Attempt to enter inner recurrence for dict without enclosing array
-  defp parse(<< "{", rest :: binary >>, acc) do
+  defp parse_struct(<< "{", _rest :: binary >>, _acc) do
     {:error, {:badsignature, :unwrappeddict}}
   end
 
@@ -211,7 +211,7 @@ defmodule DBux.Type do
 
 
   # Within dict: Attempt to enter inner recurrence for dict without enclosing array
-  defp parse(<< "{", rest :: binary >>, acc) do
+  defp parse_dict(<< "{", _rest :: binary >>, _acc) do
     {:error, {:badsignature, :unwrappeddict}}
   end
 
@@ -260,7 +260,7 @@ defmodule DBux.Type do
 
   # Within dict: Dict has no contents
   defp parse_dict(<< >>, _acc) do
-    {:error, {:badsignature, :emptydict}}
+    {:error, {:badsignature, :unmatcheddict}}
   end
 
 
@@ -289,7 +289,7 @@ defmodule DBux.Type do
   defp parse_array(<< "{", rest :: binary >>, acc) do
     case parse_dict(rest, []) do
       {:ok, value_parsed, rest_after_parse} ->
-        parse_array(rest_after_parse, acc ++ [value_parsed])
+        {:ok, {:array, acc ++ [value_parsed]}, rest_after_parse}
 
       {:error, reason} ->
         {:error, reason}
@@ -334,7 +334,7 @@ defmodule DBux.Type do
 
 
   # Within array: Simple types, return
-  defp parse_array(<< head :: binary-size(1), rest :: binary >>, _acc) do
-    {:ok, {:array, [type(head)]}, rest}
+  defp parse_array(<< head :: binary-size(1), rest :: binary >>, acc) do
+    {:ok, {:array, acc ++ [type(head)]}, rest}
   end
 end
