@@ -287,7 +287,7 @@ defmodule DBux.Type do
   defp parse_array(<< "(", rest :: binary >>, acc) do
     case parse_struct(rest, []) do
       {:ok, value_parsed, rest_after_parse} ->
-        parse_array(rest_after_parse, acc ++ [value_parsed])
+        {:ok, {:array, acc ++ [value_parsed]}, rest_after_parse}
 
       {:error, reason} ->
         {:error, reason}

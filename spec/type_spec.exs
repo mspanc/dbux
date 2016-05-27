@@ -342,6 +342,14 @@ defmodule DBux.TypeSpec do
             expect(described_module.type_from_signature(signature)).to eq {:ok, [{:array, [{:dict, [:string, :string]}]}]}
           end
         end
+
+        context "if it is prefixed and suffixed by any other values" do
+          let :signature, do: "da{ss}d"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq {:ok, [:double, {:array, [{:dict, [:string, :string]}]}, :double]}
+          end
+        end
       end
 
       context "for signature containing dict with struct in array" do
@@ -350,6 +358,51 @@ defmodule DBux.TypeSpec do
 
           it "returns a list of atoms and tuples of appropriate types" do
             expect(described_module.type_from_signature(signature)).to eq {:ok, [{:array, [{:dict, [:string, {:struct, [:int32, :string]}]}]}]}
+          end
+        end
+
+        context "if it is prefixed and suffixed by any other values" do
+          let :signature, do: "da{s(is)}d"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq {:ok, [:double, {:array, [{:dict, [:string, {:struct, [:int32, :string]}]}]}, :double]}
+          end
+        end
+      end
+
+
+      context "for signature containing struct in array" do
+        context "if it is not prefixed or suffixed by any other values" do
+          let :signature, do: "a(ss)"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq {:ok, [{:array, [{:struct, [:string, :string]}]}]}
+          end
+        end
+
+        context "if it is prefixed and suffixed by any other values" do
+          let :signature, do: "da(ss)d"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq {:ok, [:double, {:array, [{:struct, [:string, :string]}]}, :double]}
+          end
+        end
+      end
+
+      context "for signature containing struct with struct in array" do
+        context "if it is not prefixed or suffixed by any other values" do
+          let :signature, do: "a(s(is))"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq {:ok, [{:array, [{:struct, [:string, {:struct, [:int32, :string]}]}]}]}
+          end
+        end
+
+        context "if it is prefixed and suffixed by any other values" do
+          let :signature, do: "da(s(is))d"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq {:ok, [:double, {:array, [{:struct, [:string, {:struct, [:int32, :string]}]}]}, :double]}
           end
         end
       end
