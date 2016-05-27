@@ -1,8 +1,11 @@
 defmodule DBux.Type do
-  @type simple_type    :: :byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :array | :struct | :variant | :dict_entry | :unix_fd
-  @type container_type :: {simple_type, [simple_type | container_type]}
-  @type t              :: simple_type | container_type
-  @type list_of_types  :: [] | [t]
+  @type simple_type_name    :: :byte | :boolean | :int16 | :uint16 | :int32 | :uint32 | :int64 | :uint64 | :double | :string | :object_path | :signature | :unix_fd
+  @type container_type_name :: :array | :struct | :variant | :dict_entry
+
+  @type simple_type         :: simple_type_name
+  @type container_type      :: {container_type_name, [simple_type | container_type]}
+  @type t                   :: simple_type | container_type
+  @type list_of_types       :: [] | [t]
 
 
   @doc """
@@ -72,7 +75,7 @@ defmodule DBux.Type do
   @doc """
   Returns alignment size for given D-Bus type.
   """
-  @spec align_size(simple_type) :: number
+  @spec align_size(simple_type_name | container_type_name) :: number
   def align_size(:byte),        do: 1
   def align_size(:boolean),     do: 4
   def align_size(:int16),       do: 2
