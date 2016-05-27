@@ -64,8 +64,19 @@ defmodule DBux.Type do
   end
 
 
-  defp parse(<< ")", rest :: binary >>, acc) do
+  defp parse(<< ")", _rest :: binary >>, _acc) do
     {:error, {:badsignature, :unmatchedstruct}}
+  end
+
+
+  defp parse(<< "a", rest :: binary >>, acc) do
+    case parse_array(rest, []) do
+      {:ok, value_parsed, rest_after_parse} ->
+        parse(rest_after_parse, acc ++ [value_parsed])
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
 
@@ -85,7 +96,7 @@ defmodule DBux.Type do
   end
 
 
-  defp parse_struct(<< ")", rest :: binary >>, []) do
+  defp parse_struct(<< ")", _rest :: binary >>, []) do
     {:error, {:badsignature, :emptystruct}}
   end
 
@@ -95,12 +106,55 @@ defmodule DBux.Type do
   end
 
 
-  defp parse_struct(<< >>, acc) do
+  defp parse_struct(<< "a", rest :: binary >>, acc) do
+    case parse_array(rest, []) do
+      {:ok, value_parsed, rest_after_parse} ->
+        parse_struct(rest_after_parse, acc ++ [value_parsed])
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+
+  defp parse_struct(<< >>, _acc) do
     {:error, {:badsignature, :unmatchedstruct}}
   end
 
 
   defp parse_struct(<< head :: binary-size(1), rest :: binary >>, acc) do
     parse_struct(rest, acc ++ [type(head)])
+  end
+
+
+  defp parse_array(<< "(", rest :: binary >>, acc) do
+    case parse_struct(rest, []) do
+      {:ok, value_parsed, rest_after_parse} ->
+        parse(rest_after_parse, acc ++ [value_parsed])
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+
+  defp parse_array(<< "a", rest :: binary >>, acc) do
+    case parse_array(rest, []) do
+      {:ok, value_parsed, rest_after_parse} ->
+        parse(rest_after_parse, acc ++ [value_parsed])
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+
+  defp parse_array(<< >>, []) do
+    {:error, {:badsignature, :emptyarray}}
+  end
+
+
+  defp parse_array(<< head :: binary-size(1), rest :: binary >>, _acc) do
+    {:ok, {:array, [type(head)]}, rest}
   end
 end

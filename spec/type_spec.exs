@@ -140,5 +140,50 @@ defmodule DBux.TypeSpec do
         end
       end
     end
+
+
+    context "for signature containing arrays" do
+      context "for array with no type" do
+        let :signature, do: "a"
+
+        it "should return {:error, {:badsignature, :emptyarray}}" do
+          expect(described_module.type_from_signature(signature)).to eq {:error, {:badsignature, :emptyarray}}
+        end
+      end
+
+      context "for signature containing only one struct with simple types inside" do
+        context "if it is not prefixed or suffixed by any other values" do
+          let :signature, do: "ai"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq [{:array, [:int32]}]
+          end
+        end
+
+        context "if it is prefixed by other simple values" do
+          let :signature, do: "iai"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq [:int32, {:array, [:int32]}]
+          end
+        end
+
+        context "if it is suffixed by other simple values" do
+          let :signature, do: "aiu"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq [{:array, [:int32]}, :uint32]
+          end
+        end
+
+        context "if it is both prefixed suffixed by other simple values" do
+          let :signature, do: "haiu"
+
+          it "returns a list of atoms and tuples of appropriate types" do
+            expect(described_module.type_from_signature(signature)).to eq [:unix_fd, {:array, [:int32]}, :uint32]
+          end
+        end
+      end
+    end
   end
 end
