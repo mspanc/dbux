@@ -293,7 +293,7 @@ defmodule DBux.Connection do
 
   defp send_message(%DBux.Message{} = message, %{transport_mod: transport_mod, transport_proc: transport_proc, serial_proc: serial_proc}) do
     serial = DBux.Serial.retreive(serial_proc)
-    {:ok, message_bitstring, _} = %{message | serial: serial} |> DBux.Message.marshall
+    {:ok, message_bitstring} = %{message | serial: serial} |> DBux.Message.marshall
 
     case transport_mod.do_send(transport_proc, message_bitstring) do
       :ok ->
@@ -306,7 +306,8 @@ defmodule DBux.Connection do
 
 
   defp send_method_call(path, interface, member, body, destination \\ nil, state) do
-    send_message(%DBux.Message{type: :method_call, path: path, interface: interface, member: member, body: body, destination: destination}, state)
+    # Serial will be added later
+    send_message(DBux.Message.build_method_call(0, path, interface, member, body, destination), state)
   end
 
 

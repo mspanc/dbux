@@ -186,7 +186,7 @@ defmodule DBux.Message do
     end
 
     header_fields_value = case message.signature do
-      nil ->
+      "" ->
         header_fields_value
 
       _ ->
@@ -203,7 +203,7 @@ defmodule DBux.Message do
 
     {:ok, header_fields_bitstring, _} = %DBux.Value{type: :array, subtype: :struct, value: header_fields_value} |> DBux.Value.marshall(endianness)
 
-    header_endianness_bitstring <>
+    {:ok, message_bitstring, _padding} = header_endianness_bitstring <>
       header_message_type_bitstring <>
       header_flags_bitstring <>
       header_protocol_bitstring <>
@@ -211,6 +211,8 @@ defmodule DBux.Message do
       header_serial_bitstring <>
       header_fields_bitstring
       |> DBux.Value.align(8)
+
+    {:ok, message_bitstring}
   end
 
 
