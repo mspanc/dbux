@@ -10,7 +10,7 @@ defmodule DBux.Message do
     reply_serial: nil,
     serial:       nil,
     body:         [],
-    signature:    nil,
+    signature:    "",
     sender:       nil,
     unix_fds:     nil
 
@@ -30,6 +30,7 @@ defmodule DBux.Message do
     reply_serial: number}
 
   @protocol_version 1
+  @message_header_signature "yyyyuua(yv)"
 
   @default_endianness (case << 1 :: size(4)-unit(8)-native >> do
     << 1 :: size(4)-unit(8)-big >> ->
@@ -224,82 +225,52 @@ defmodule DBux.Message do
   If not enough data was given it returns `{:error, :bitstring_too_short}`.
   """
   @spec unmarshall(Bitstring) :: {:ok, %DBux.Message{}, Bitstring} | {:error, any}
+  def unmarshall(<< >>), do: {:error, :bitstring_too_short}
   def unmarshall(bitstring) when is_binary(bitstring) do
-    # TODO check if we have at least these 4 bytes
-    << endianness_bitstring,
-       message_type_bitstring,
-       header_flags_bitstring,
-       @protocol_version,
-       rest :: binary >> = bitstring
+    << endianness_bitstring, rest :: binary >> = bitstring
 
     endianness = case endianness_bitstring do
       108 -> :little_endian
       66  -> :big_endian
     end
 
-    message_type = case message_type_bitstring do
-      1 -> :method_call
-      2 -> :method_return
-      3 -> :error
-      4 -> :signal
-    end
+    case DBux.Protocol.unmarshall_bitstring(bitstring, endianness, @message_header_signature, true) do
+      {:ok, {[_endianness_raw, message_type_raw, flags, @protocol_version, body_length, serial, header_fields], rest}} ->
+        message_type = case message_type_raw do
+          1 -> :method_call
+          2 -> :method_return
+          3 -> :error
+          4 -> :signal
+        end
 
-    flags = header_flags_bitstring # FIXME
+        message = %DBux.Message{type: message_type, flags: flags, serial: serial}
 
-    # FIXME stack this
-    {body_length, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
-      {:ok, header_body_length_value, rest} ->
-        {header_body_length_value.value, rest}
+        message = Enum.reduce(header_fields, message, fn({header_field_type, header_field_value}, acc) ->
+          message_key = case header_field_type do
+            1 -> :path
+            2 -> :interface
+            3 -> :member
+            4 -> :error_name
+            5 -> :reply_serial
+            6 -> :destination
+            7 -> :sender
+            8 -> :signature
+            9 -> :unix_fds
+          end
+
+          Map.put(acc, message_key, header_field_value)
+        end)
+
+        case DBux.Protocol.unmarshall_bitstring(rest, endianness, message.signature, true) do
+          {:ok, {body, rest}} ->
+            {:ok, {message |> Map.put(:body, body), rest}}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
 
       {:error, reason} ->
         {:error, reason}
     end
-
-    {serial, rest} = case DBux.Value.unmarshall(rest, endianness, :uint32, nil, 0) do
-      {:ok, header_serial_value, rest} ->
-        {header_serial_value.value, rest}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-
-    {header_fields, rest} = case DBux.Value.unmarshall(rest, endianness, :array, {:struct, [:byte, :variant]}, 0) do
-      {:ok, header_fields_value, rest} ->
-        {header_fields_value.value, rest}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-
-    message = %DBux.Message{type: message_type, flags: flags, serial: serial}
-
-    message = Enum.reduce(header_fields, message, fn(
-      %DBux.Value{subtype: [:byte, :variant], type: :struct, value: [
-        %DBux.Value{type: :byte, value: header_field_type},
-        %DBux.Value{type: :variant, value: %DBux.Value{value: header_field_value}}
-      ]}, acc) ->
-
-      message_key = case header_field_type do
-        1 -> :path
-        2 -> :interface
-        3 -> :member
-        4 -> :error_name
-        5 -> :reply_serial
-        6 -> :destination
-        7 -> :sender
-        8 -> :signature
-        9 -> :unix_fds
-      end
-
-      Map.put(acc, message_key, header_field_value)
-    end)
-
-
-
-    IO.puts inspect(message)
-
-
-
-    {:ok, message}
   end
 end

@@ -12,7 +12,7 @@ defmodule DBux.Mixfile do
   end
 
   def application do
-    []
+    [applications: [:logger]]
   end
 
   defp deps do

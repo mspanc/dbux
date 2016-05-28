@@ -15,63 +15,67 @@ defmodule DBux.MessageSpec do
         end
 
         it "should have destination set to \"org.freedesktop.DBus\"" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.destination).to eq "org.freedesktop.DBus"
         end
 
         it "should have error_name set to nil" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.error_name).to be_nil
         end
 
         it "should have flags set to 0" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.flags).to eq 0
         end
 
         it "should have interface set to \"org.freedesktop.DBus\"" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.interface).to eq "org.freedesktop.DBus"
         end
 
         it "should have member set to \"Hello\"" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.member).to eq "Hello"
         end
 
         it "should have path set to \"/org/freedesktop/DBus\"" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.path).to eq "/org/freedesktop/DBus"
         end
 
         it "should have reply_serial set to nil" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.reply_serial).to be_nil
         end
 
         it "should have sender set to nil" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.sender).to be_nil
         end
 
         it "should have serial set to 1" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.serial).to eq 1
         end
 
         it "should have signature set to \"\"" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.signature).to eq ""
         end
 
         it "should have type set to :method_call" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.type).to eq :method_call
         end
 
         it "should have unix_fds set to nil" do
-          {:ok, message} = described_module.unmarshall(bitstring)
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring)
           expect(message.unix_fds).to be_nil
+        end
+
+        xit "should have body set to ..." do
+
         end
       end
     end

@@ -13,7 +13,7 @@ defmodule DBux.Type do
 
   Reverse function is `type/1`.
   """
-  @spec signature(simple_type) :: String.t
+  @spec signature(simple_type | :variant) :: String.t
   def signature(:byte),        do: "y"
   def signature(:boolean),     do: "b"
   def signature(:int16),       do: "n"
@@ -27,6 +27,7 @@ defmodule DBux.Type do
   def signature(:object_path), do: "o"
   def signature(:signature),   do: "g"
   def signature(:unix_fd),     do: "h"
+  def signature(:variant),     do: "v"
 
 
   @doc """
@@ -34,7 +35,7 @@ defmodule DBux.Type do
 
   Reverse function is `signature/1`.
   """
-  @spec type(String.t) :: simple_type
+  @spec type(String.t) :: simple_type | :variant
   def type("y"), do: :byte
   def type("b"), do: :boolean
   def type("n"), do: :int16
@@ -48,6 +49,7 @@ defmodule DBux.Type do
   def type("o"), do: :object_path
   def type("g"), do: :signature
   def type("h"), do: :unix_fd
+  def type("v"), do: :variant
 
 
   @doc """

@@ -1,3 +1,4 @@
-%{"connection": {:hex, :connection, "1.0.2"},
-  "espec": {:hex, :espec, "0.8.21"},
-  "meck": {:hex, :meck, "0.8.4"}}
+%{"connection": {:hex, :connection, "1.0.2", "f4a06dd3ecae4141aa66f94ce92ea4c4b8753069472814932f1cadbc3078ab80", [:mix], []},
+  "espec": {:hex, :espec, "0.8.21", "c3fe5f1317fcc56837fca088d86b725ab1a50ca13e6c290f79f8aa386a86d952", [:mix], [{:meck, "~> 0.8.4", [hex: :meck, optional: false]}]},
+  "logger": {:git, "https://github.com/josevalim/logger.git", "a4b9b40dbe963e68fd396c686002ccb3947e0435", []},
+  "meck": {:hex, :meck, "0.8.4", "59ca1cd971372aa223138efcf9b29475bde299e1953046a0c727184790ab1520", [:rebar, :make], []}}
