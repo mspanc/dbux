@@ -4,16 +4,17 @@ defmodule DBux.Auth.Anonymous do
 
   @behaviour DBux.Auth
 
+  @debug !is_nil(System.get_env("DBUX_DEBUG"))
 
   def start_link(_parent, options) do
-    Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Start link")
+    if @debug, do: Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Start link")
     Connection.start_link(__MODULE__, options)
   end
 
 
   @doc false
   def init(_options) do
-    Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Init")
+    if @debug, do: Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Init")
     {:ok, %{}}
   end
 
@@ -24,7 +25,7 @@ defmodule DBux.Auth.Anonymous do
 
 
   def handle_call({:handshake, {transport_mod, transport_proc}}, _sender, state) do
-    Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Handle call: Handshake")
+    if @debug, do: Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Handle call: Handshake")
     case transport_mod.do_send(transport_proc, "\0AUTH ANONYMOUS 527562792044427573\r\n") do
       :ok ->
         {:reply, :ok, state}
