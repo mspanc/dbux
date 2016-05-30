@@ -6,8 +6,11 @@ otp_release:
   - 17.5
   - 18.0
 sudo: false
-script:
-  - mix espec
+
+env:
+  - MIX_ENV=test
+
+script: mix coveralls.travis
 notifications:
   recipients:
     - marcin@saepia.net
