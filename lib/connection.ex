@@ -174,13 +174,13 @@ defmodule DBux.Connection do
   """
   @spec do_method_call(pid, String.t, String.t, String.t, list, String.t | nil) :: {:ok, DBux.Serial.t} | {:error, any}
   def do_method_call(bus, path, interface, member, body \\ [], destination \\ nil) when is_pid(bus) and is_binary(path) and is_binary(interface) and is_binary(member) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
-    Connection.call(bus, {:send_method_call, path, interface, member, body, destination})
+    Connection.call(bus, {:dbux_method_call, path, interface, member, body, destination})
   end
 
 
   @spec do_request_name(pid, String.t) :: :ok | {:error, any}
   def do_request_name(bus, name) do
-    Connection.call(bus, {:request_name, name})
+    Connection.call(bus, {:dbux_request_name, name})
   end
 
 
@@ -226,7 +226,7 @@ defmodule DBux.Connection do
 
 
   @doc false
-  def handle_call({:send_method_call, path, interface, member, body, destination}, _sender, %{state: :authenticated} = state) do
+  def handle_call({:dbux_method_call, path, interface, member, body, destination}, _sender, %{state: :authenticated} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when authenticated")
     case send_method_call(path, interface, member, body, destination, state) do
       {:ok, serial} ->
@@ -240,7 +240,7 @@ defmodule DBux.Connection do
 
 
   @doc false
-  def handle_call({:request_name, name}, _sender, %{state: :ready} = state) do
+  def handle_call({:dbux_request_name, name}, _sender, %{state: :ready} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: request name when ready")
     case send_request_name(name, state) do
       {:ok, serial} ->

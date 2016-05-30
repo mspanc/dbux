@@ -1,7 +1,7 @@
 defmodule DBux.ValueSpec do
   use ESpec, async: false
 
-  context ".marshall/2" do
+  describe ".marshall/2" do
     let :result, do: DBux.Value.marshall(%DBux.Value{type: type, value: value}, endianness)
 
     context "if passed 'byte' value" do
@@ -1186,6 +1186,134 @@ defmodule DBux.ValueSpec do
     xcontext "if passed 'variant' value" do
       let :type, do: :variant
 
+    end
+  end
+
+
+  describe ".unmarshall/6" do
+    let :depth, do: 0
+
+    context "if type is string" do
+      let :type, do: :string
+      let :subtype, do: nil
+
+      context "and there's a bitstring that is too short" do
+        let :unwrap_values, do: true
+
+        context "if endianness is little-endian" do
+          let :bitstring, do: <<17, 0, 0, 0, 111, 114, 103, 46, 114, 97, 100, 105, 111, 107, 105, 116, 46, 116, 101, 115, 116>> # nul byte removed
+          let :endianness, do: :little_endian
+
+          it "should return an error result" do
+            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+          end
+
+          it "should return :bitstring_too_short as an error reason" do
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            expect(reason).to eq :bitstring_too_short
+          end
+        end
+
+        context "if endianness is big-endian" do
+          let :bitstring, do: <<0, 0, 0, 17, 111, 114, 103, 46, 114, 97, 100, 105, 111, 107, 105, 116, 46, 116, 101, 115, 116>> # nul byte removed
+          let :endianness, do: :big_endian
+
+          it "should return an error result" do
+            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+          end
+
+          it "should return :bitstring_too_short as an error reason" do
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            expect(reason).to eq :bitstring_too_short
+          end
+        end
+      end
+
+      context "and there's a bitstring given that contains exactly the length + body" do
+        context "if endianness is little-endian" do
+          let :endianness, do: :little_endian
+          let :bitstring, do: <<17, 0, 0, 0, 111, 114, 103, 46, 114, 97, 100, 105, 111, 107, 105, 116, 46, 116, 101, 115, 116, 0>>
+          let :expected_value, do: "org.radiokit.test"
+
+          context "and unwrap values is set to true" do
+            let :unwrap_values, do: true
+
+            it "should return an ok result" do
+              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+            end
+
+            it "should return a parsed string" do
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              expect(value).to eq expected_value
+            end
+
+            it "should return an empty rest" do
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              expect(rest).to eq << >>
+            end
+          end
+
+          context "and unwrap values is set to false" do
+            let :unwrap_values, do: false
+
+            it "should return an ok result" do
+              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+            end
+
+            it "should return a parsed string wrapped in a struct" do
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+            end
+
+            it "should return an empty rest" do
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              expect(rest).to eq << >>
+            end
+          end
+        end
+
+        context "if endianness is big-endian" do
+          let :endianness, do: :big_endian
+          let :bitstring, do: <<0, 0, 0, 17, 111, 114, 103, 46, 114, 97, 100, 105, 111, 107, 105, 116, 46, 116, 101, 115, 116, 0>>
+          let :expected_value, do: "org.radiokit.test"
+
+          context "and unwrap values is set to true" do
+            let :unwrap_values, do: true
+
+            it "should return an ok result" do
+              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+            end
+
+            it "should return a parsed string" do
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              expect(value).to eq expected_value
+            end
+
+            it "should return an empty rest" do
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              expect(rest).to eq << >>
+            end
+          end
+
+          context "and unwrap values is set to false" do
+            let :unwrap_values, do: false
+
+            it "should return an ok result" do
+              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+            end
+
+            it "should return a parsed string wrapped in a struct" do
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+            end
+
+            it "should return an empty rest" do
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              expect(rest).to eq << >>
+            end
+          end
+        end
+      end
     end
   end
 end

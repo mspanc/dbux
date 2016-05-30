@@ -110,7 +110,7 @@ defmodule DBux.Protocol do
     end
 
     case parsed_value do
-      {:ok, value, bitstring_rest} ->
+      {:ok, {value, bitstring_rest}} ->
         unmarshall_bitstring_step(bitstring_rest, endianness, signature_rest, unwrap_values, acc ++ [value])
 
       {:error, reason} ->

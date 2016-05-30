@@ -1,6 +1,5 @@
 defmodule DBux.Transport.TCP do
   require Logger
-
   use Connection
 
   @behaviour DBux.Transport

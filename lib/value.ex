@@ -290,7 +290,7 @@ defmodule DBux.Value do
       end
 
       case unmarshall(bitstring, endianness, :uint32, nil, true, depth + 1) do
-        {:ok, body_length, rest} ->
+        {:ok, {body_length, rest}} ->
           if byte_size(rest) < body_length do
             if @debug, do: debug("Unmarshalling array: bitstring too short", depth)
             {:error, :bitstring_too_short}
@@ -305,10 +305,10 @@ defmodule DBux.Value do
                 if @debug, do: debug("Unmarshalled array elements: value = #{inspect(value)}", depth)
                 case unwrap_values do
                   true ->
-                    {:ok, value, rest}
+                    {:ok, {value, rest}}
 
                   false ->
-                    {:ok, %DBux.Value{type: :array, subtype: subtype_major, value: value}, rest}
+                    {:ok, {%DBux.Value{type: :array, subtype: subtype_major, value: value}, rest}}
                 end
 
               {:error, error} ->
@@ -339,7 +339,7 @@ defmodule DBux.Value do
 
         if @debug, do: debug("Unmarshalling struct: element = #{inspect(element)}, acc = #{inspect(acc)}", depth)
         case unmarshall(acc_bitstring, endianness, element, nil, unwrap_values, depth + 1) do # TODO support nested compound types
-          {:ok, value, rest} ->
+          {:ok, {value, rest}} ->
             {rest, acc_values ++ [value]}
 
           {:error, reason} ->
@@ -349,10 +349,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, List.to_tuple(value), rest}
+          {:ok, {List.to_tuple(value), rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :struct, subtype: subtype, value: value}, rest}
+          {:ok, {%DBux.Value{type: :struct, subtype: subtype, value: value}, rest}}
       end
     end
   end
@@ -365,7 +365,7 @@ defmodule DBux.Value do
 
     else
       case unmarshall(bitstring, endianness, :signature, nil, true, depth + 1) do
-        {:ok, signature, rest} ->
+        {:ok, {signature, rest}} ->
           if @debug, do: debug("Unmarshalling variant: signature = #{inspect(signature)}", depth)
 
           case DBux.Type.type_from_signature(signature) do
@@ -379,13 +379,13 @@ defmodule DBux.Value do
               end
 
               case unmarshall(rest, endianness, body_type_major, body_type_minor, unwrap_values, depth + 1) do
-                {:ok, body_value, rest} ->
+                {:ok, {body_value, rest}} ->
                   case unwrap_values do
                     true ->
-                      {:ok, body_value, rest}
+                      {:ok, {body_value, rest}}
 
                     false ->
-                      {:ok, %DBux.Value{type: :variant, subtype: body_type_major, value: body_value}, rest}
+                      {:ok, {%DBux.Value{type: :variant, subtype: body_type_major, value: body_value}, rest}}
                   end
 
                 {:error, error} ->
@@ -413,10 +413,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, value, rest}
+          {:ok, {value, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :byte, value: value}, rest}
+          {:ok, {%DBux.Value{type: :byte, value: value}, rest}}
       end
     end
   end
@@ -440,10 +440,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, value, rest}
+          {:ok, {value, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :uint16, value: value}, rest}
+          {:ok, {%DBux.Value{type: :uint16, value: value}, rest}}
       end
     end
   end
@@ -467,10 +467,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, value, rest}
+          {:ok, {value, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :int16, value: value}, rest}
+          {:ok, {%DBux.Value{type: :int16, value: value}, rest}}
       end
     end
   end
@@ -494,10 +494,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, value, rest}
+          {:ok, {value, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :uint32, value: value}, rest}
+          {:ok, {%DBux.Value{type: :uint32, value: value}, rest}}
       end
     end
   end
@@ -523,7 +523,7 @@ defmodule DBux.Value do
             {:ok, boolean_value, rest}
 
           false ->
-            {:ok, %DBux.Value{type: :boolean, value: boolean_value}, rest}
+            {:ok, {%DBux.Value{type: :boolean, value: boolean_value}, rest}}
         end
 
       {:error, reason} ->
@@ -550,10 +550,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, value, rest}
+          {:ok, {value, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :int32, value: value}, rest}
+          {:ok, {%DBux.Value{type: :int32, value: value}, rest}}
       end
     end
   end
@@ -577,10 +577,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, value, rest}
+          {:ok, {value, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :uint64, value: value}, rest}
+          {:ok, {%DBux.Value{type: :uint64, value: value}, rest}}
       end
     end
   end
@@ -604,10 +604,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, value, rest}
+          {:ok, {value, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :int64, value: value}, rest}
+          {:ok, {%DBux.Value{type: :int64, value: value}, rest}}
       end
     end
   end
@@ -631,10 +631,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, value, rest}
+          {:ok, {value, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :double, value: value}, rest}
+          {:ok, {%DBux.Value{type: :double, value: value}, rest}}
       end
     end
   end
@@ -653,10 +653,10 @@ defmodule DBux.Value do
 
       case unwrap_values do
         true ->
-          {:ok, body, rest}
+          {:ok, {body, rest}}
 
         false ->
-          {:ok, %DBux.Value{type: :signature, value: body}, rest}
+          {:ok, {%DBux.Value{type: :signature, value: body}, rest}}
       end
     end
   end
@@ -669,36 +669,21 @@ defmodule DBux.Value do
 
     else
       case unmarshall(bitstring, endianness, :uint32, nil, true, depth + 1) do
-        {:ok, length, rest} ->
-          if byte_size(rest) < length do
+        {:ok, {length, rest}} ->
+          if byte_size(rest) <= length do
             if @debug, do: debug("Unmarshalling string: bitstring too short", depth)
             {:error, :bitstring_too_short}
 
           else
-            if length != 0 do
-              padding_size = compute_padding_size(length + 1, :string)
-              << body :: binary-size(length), 0, padding :: binary-size(padding_size), rest :: binary >> = rest
-              if @debug, do: debug("Unmarshalled string: length = #{inspect(length)}, padding_size = #{inspect(padding_size)}, body = #{inspect(body)}", depth)
+            << body :: binary-size(length), 0, rest :: binary >> = rest
+            if @debug, do: debug("Unmarshalled string: length = #{inspect(length)}, body = #{inspect(body)}", depth)
 
-              case unwrap_values do
-                true ->
-                  {:ok, body, rest}
+            case unwrap_values do
+              true ->
+                {:ok, {body, rest}}
 
-                false ->
-                  {:ok, %DBux.Value{type: :string, value: body}, rest}
-              end
-
-            else
-              << 0, rest :: binary >> = rest
-              if @debug, do: debug("Unmarshalled empty string: length = #{inspect(length)}", depth)
-
-              case unwrap_values do
-                true ->
-                  {:ok, "", rest}
-
-                false ->
-                  {:ok, %DBux.Value{type: :string, value: ""}, rest}
-              end
+              false ->
+                {:ok, {%DBux.Value{type: :string, value: body}, rest}}
             end
           end
 
@@ -723,7 +708,7 @@ defmodule DBux.Value do
 
     else
       case unmarshall(bitstring, endianness, subtype_major, subtype_minor, unwrap_values, depth + 1) do
-        {:ok, value, rest} ->
+        {:ok, {value, rest}} ->
           if rest != << >> do
             parsed_bytes = byte_size(bitstring) - byte_size(rest)
             padding_size = compute_padding_size(parsed_bytes, subtype_major)
