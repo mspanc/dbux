@@ -16,71 +16,98 @@ In my opinion it's a task for an another abstraction layer (read: another projec
 built on top of DBux).
 
 At the beginning it's going to provide only functionality needed to act as
-a client. Exporting interfaces/objects may be added later.
+a client. Acting as a server may be added later.
 
 ## Status
 
-Project in the early stage of development. API may change without prior warning.
+Project in production use in at least one big app :)
 
 # Sample Usage
 
+An example `DBux.Connection` process:
+
 ```elixir
-defmodule MyClientConnection do
+defmodule MyApp.Bus do
+  require Logger
   use DBux.Connection
 
-  def start_link(opts \\ []) do
-    DBux.Connection.start_link(__MODULE__,
-      DBux.Transport.TCP, %{host: "example.com", port: 8888},
-      DBux.Auth.Anonymous, %{})
+  def start_link(options \\ []) do
+    DBux.Connection.start_link(__MODULE__, "myserver.example.com")
   end
 
-  def init(_transport_mod, _transport_opts, _auth_mod, _auth_opts) do
-    # TODO
-    {:ok, %{}}
+  def init(hostname) do
+    Logger.debug("Init, hostname = #{hostname}")
+    initial_state = %{request_name_serial: nil}
+    {:ok, "tcp:host=#{hostname},port=8888", [:anonymous], initial_state}
   end
 
-  # Called when connection is ready
+  def request_name(proc) do
+    DBux.Connection.call(proc, :request_name)
+  end
+
+  @doc false
   def handle_up(state) do
-    # TODO
+    Logger.info("Up")
     {:noreply, state}
   end
 
-  # Called when connection is lost
+  @doc false
   def handle_down(state) do
-    # TODO
+    Logger.warn("Down")
     {:noreply, state}
   end
 
-  # Called when we receive a method call
-  def handle_method_call(serial, path, member, interface, values, state) do
-    # TODO
-    {:noreply, state}
+  @doc false
+  def handle_method_return(_serial, reply_serial, _body, %{request_name_serial: request_name_serial} = state) do
+    cond do
+      reply_serial == request_name_serial ->
+        Logger.info("Name acquired")
+        {:noreply, %{state | request_name_serial: nil}}
+
+      true ->
+        {:noreply, state}
+    end
   end
 
-  # Called when we receive a method return
-  def handle_method_return(serial, reply_serial, return_value, state) do
-    # TODO
-    {:noreply, state}
+  @doc false
+  def handle_error(_serial, reply_serial, error_name, _body, %{request_name_serial: request_name_serial} = state) do
+    cond do
+      reply_serial == request_name_serial ->
+        Logger.warn("Failed te acquire name: #{error_name}")
+        {:noreply, %{state | request_name_serial: nil}}
+
+      true ->
+        {:noreply, state}
+    end
   end
 
-  # Called when we receive an error
-  def handle_error(serial, reply_serial, error_name, state) do
-    # TODO
-    {:noreply, state}
-  end
+  @doc false
+  def handle_call(:request_name, state) do
+    case DBux.Connection.do_method_call(self(),
+      "/org/freedesktop/DBus",
+      "org.freedesktop.DBus",
+      "RequestName",
+      [ %DBux.Value{type: :string, value: "com.example.dbux"},
+        %DBux.Value{type: :uint32, value: 0} ],
+      "org.freedesktop.DBus") do
+      {:ok, serial} ->
+        {:reply, :ok, %{state | request_name_serial: serial}}
 
-  # Called when we receive a signal
-  def handle_signal(serial, path, member, interface, state) do
-    # TODO
-    {:noreply, state}
+      {:error, reason} ->
+        Logger.warn("Unable to request name, reason = #{inspect(reason)}")
+        {:reply, {:error, reason} state}
+    end
   end
 end
+```
 
+And of the accompanying process that can control the connection:
 
-defmodule MyExampleApp do
-  def send_method_call do
-    {:ok, connection} = MyClientConnection.start_link
-    {:ok, serial} = DBux.Connection.do_method_call(connection, "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus")
+```elixir
+defmodule MyApp.Core do
+  def do_the_stuff do
+    {:ok, connection} = MyApp.Bus.start_link
+    {:ok, serial} = MyApp.Bus.request_name(connection)
   end
 end
 ```
@@ -89,11 +116,18 @@ end
 
 Marcin Lewandowski <marcin@saepia.net>
 
+# Debugging
+
+If you encounter bugs, you may want to compile (not run, compile) the code with
+`DBUX_DEBUG` environment variable set to any value.
+
+# Contributing
+
+You are welcome to open pull requests. Tests are mandatory.
+
 # Credits
 
-Project is heavily inspired by [Connection](https://hex.pm/packages/connection)
-and [ruby-dbus](https://github.com/mvidner/ruby-dbus). It may contain parts of
-code that come from these projects.
+Project is heavily inspired by [Connection](https://hex.pm/packages/connection).
 
 # License
 

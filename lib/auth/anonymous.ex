@@ -12,9 +12,9 @@ defmodule DBux.Auth.Anonymous do
 
 
   @doc false
-  def init(options) do
+  def init(_options) do
     Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Init")
-    {:ok, options}
+    {:ok, %{}}
   end
 
 

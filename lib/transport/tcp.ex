@@ -2,13 +2,16 @@ defmodule DBux.Transport.TCP do
   require Logger
   use Connection
 
+  # FIXME do refactor, that still contains some logic, but should contain only
+  # transport-related code
+
   @behaviour DBux.Transport
 
   @connect_timeout   5000
   @reconnect_timeout 1000
 
 
-  def start_link(parent, %{host: _host, port: _port} = options) do
+  def start_link(parent, options) do
     Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Start link")
     Connection.start_link(__MODULE__, {parent, options})
   end
@@ -17,10 +20,7 @@ defmodule DBux.Transport.TCP do
   @doc false
   def init({parent, options}) do
     Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Init")
-    {:ok, options
-      |> Map.put(:parent, parent)
-      |> Map.put(:sock, nil)
-      |> Map.put(:state, :handshake)}
+    {:ok, %{ parent: parent, sock: nil, state: :handshake, host: options[:host], port: options[:port]}}
   end
 
 

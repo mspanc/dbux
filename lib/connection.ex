@@ -1,4 +1,100 @@
 defmodule DBux.Connection do
+  @moduledoc """
+  This module handles connection to the another D-Bus peer.
+
+  At the moment it handles only connections to the buses.
+
+  It basically allows to establish a connection and then send and receive messages.
+  Its interface is intentionally quite low-level. You probably won't be able to
+  use it properly without understanding how D-Bus protocol works.
+
+  An example `DBux.Connection` process:
+
+      defmodule MyApp.Bus do
+        require Logger
+        use DBux.Connection
+
+        def start_link(options \\ []) do
+          DBux.Connection.start_link(__MODULE__, "myserver.example.com")
+        end
+
+        def init(hostname) do
+          Logger.debug("Init")
+          initial_state = %{request_name_serial: nil}
+          {:ok, "tcp:host=" <> hostname <> ",port=8888", [:anonymous], initial_state}
+        end
+
+        def request_name(proc) do
+          DBux.Connection.call(proc, :request_name)
+        end
+
+        @doc false
+        def handle_up(state) do
+          Logger.info("Up")
+          {:noreply, state}
+        end
+
+        @doc false
+        def handle_down(state) do
+          Logger.warn("Down")
+          {:noreply, state}
+        end
+
+        @doc false
+        def handle_method_return(_serial, reply_serial, _body, %{request_name_serial: request_name_serial} = state) do
+          cond do
+            reply_serial == request_name_serial ->
+              Logger.info("Name acquired")
+              {:noreply, %{state | request_name_serial: nil}}
+
+            true ->
+              {:noreply, state}
+          end
+        end
+
+        @doc false
+        def handle_error(_serial, reply_serial, error_name, _body, %{request_name_serial: request_name_serial} = state) do
+          cond do
+            reply_serial == request_name_serial ->
+              Logger.warn("Failed te acquire name: " <> error_name)
+              {:noreply, %{state | request_name_serial: nil}}
+
+            true ->
+              {:noreply, state}
+          end
+        end
+
+        @doc false
+        def handle_call(:request_name, state) do
+          case DBux.Connection.do_method_call(self(),
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "Hello", [
+              %DBux.Value{type: :string, value: "com.example.dbux"},
+              %DBux.Value{type: :uint32, value: 0}
+            ],
+            "org.freedesktop.DBus") do
+            {:ok, serial} ->
+              {:reply, :ok, %{state | request_name_serial: serial}}
+
+            {:error, reason} ->
+              Logger.warn("Unable to request name, reason = " <> inspect(reason))
+              {:reply, {:error, reason} state}
+          end
+        end
+      end
+
+  And of the accompanying process that can control the connection:
+
+      defmodule MyApp.Core do
+        def do_the_stuff do
+          {:ok, connection} = MyApp.Bus.start_link
+          {:ok, serial} = MyApp.Bus.request_name(connection)
+        end
+      end
+
+  """
+
   require Logger
   use Connection
 
@@ -8,14 +104,16 @@ defmodule DBux.Connection do
   @debug !is_nil(System.get_env("DBUX_DEBUG"))
 
   @doc """
-  Called when Connection process is first started. `start_link/5` will block
+  Called when Connection process is first started. `start_link/1` will block
   until it returns.
 
-  Returning `{:ok, state}` will cause `start_link/5` to return
-  `{:ok, pid}` and the process to enter its loop with state `state`
+  The first argument will be the same as `mod_options` passed to `start_link/3`.
+
+  Returning `{:ok, address, auth_mechanisms, state}` will cause `start_link/5`
+  to return `{:ok, pid}` and the process to enter its loop with state `state`
   """
-  @callback init(module, map, module, map, String.t) ::
-    {:ok, any}
+  @callback init(any) ::
+    {:ok, String.t, [any], any}
 
   @doc """
   Called when connection is ready.
@@ -73,11 +171,6 @@ defmodule DBux.Connection do
       # Default implementations
 
       @doc false
-      def init(_transport_mod, _transport_opts, _auth_mod, _auth_opts, _name) do
-        {:ok, %{}}
-      end
-
-      @doc false
       def handle_up(state) do
         {:noreply, state}
       end
@@ -108,7 +201,6 @@ defmodule DBux.Connection do
       end
 
       defoverridable [
-        init: 5,
         handle_up: 1,
         handle_down: 1,
         handle_method_call: 6,
@@ -126,48 +218,24 @@ defmodule DBux.Connection do
   `mod` is a module that will become a process, similarily how it happens
   in GenServer.
 
-  `transport_mod` is a module that will be used for transport. So far only
-  `DBux.Transport.TCP` is supported.
+  `mod_options` are options that will be passed to `init/1`.
 
-  `transport_opts` are options that will be passed to transport. Refer to
-  individual transports' docs.
+  `proc_options` are options that will be passed to underlying
+  `GenServer.start_link` call, so they can contain global process name etc.
 
-  `auth_mod` is a module that will be used for authentication. So far only
-  `DBux.Auth.Anonymous` is supported.
-
-  `auth_opts` are options that will be passed to authentication module. Refer to
-  individual authenticators' docs.
-
-  It returns the same body as `GenServer.start_link`.
+  It returns the same return value as `GenServer.start_link`.
   """
-  @spec start_link(module, module, map, module, map) :: GenServer.on_start
-  def start_link(mod, transport_mod, transport_opts, auth_mod, auth_opts) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}")
+  @spec start_link(module, any, list) :: GenServer.on_start
+  def start_link(mod, mod_options \\ nil, proc_options \\ []) do
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Start link: mod_options = #{inspect(mod_options)}, proc_options = #{inspect(proc_options)}")
 
-    initial_state = %{
-      mod:                 mod,
-      mod_state:           nil,
-      state:               :init,
-      transport_mod:       transport_mod,
-      transport_opts:      transport_opts,
-      transport_proc:      nil,
-      auth_mod:            auth_mod,
-      auth_opts:           auth_opts,
-      auth_proc:           nil,
-      serial_proc:         nil,
-      unique_name:         nil,
-      hello_serial:        nil,
-      buffer:              << >>,
-      unwrap_values:       true
-    }
-
-    Connection.start_link(__MODULE__, initial_state)
+    Connection.start_link(__MODULE__, {mod, mod_options}, proc_options)
   end
 
 
   @doc """
   Causes bus to synchronously send method call to given path, interface,
-  destination, poptionally with body.
+  destination, optionally with body.
 
   It returns `{:ok, serial}` in case of success, `{:error, reason}` otherwise.
   Please note that `{:error, reason}` does not mean error reply over D-Bus, it
@@ -179,27 +247,35 @@ defmodule DBux.Connection do
   end
 
 
-  @spec do_request_name(pid, String.t) :: :ok | {:error, any}
-  def do_request_name(bus, name) do
-    Connection.call(bus, {:dbux_request_name, name})
-  end
-
 
   @doc false
-  def init(%{mod: mod, transport_mod: transport_mod, transport_opts: transport_opts, auth_mod: auth_mod, auth_opts: auth_opts} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Init")
+  def init({mod, mod_options}) do
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Init, mod = #{inspect(mod)}, mod_options = #{inspect(mod_options)}")
+
+    {:ok, address, auth_mechanisms, mod_state} = mod.init(mod_options)
+    {:ok, transport_mod, transport_opts} = DBux.Transport.get_module_for_address(address)
+    {:ok, auth_mod, auth_opts} = DBux.Transport.get_module_for_method(hd(auth_mechanisms)) # FIXME support more mechanisms
 
     {:ok, transport_proc} = transport_mod.start_link(self(), transport_opts)
     {:ok, auth_proc}      = auth_mod.start_link(self(), auth_opts)
     {:ok, serial_proc}    = DBux.Serial.start_link()
-    {:ok, mod_state}      = mod.init(transport_mod, transport_opts, auth_mod, auth_opts)
 
-    {:connect, :init,
-      %{state |
-        transport_proc: transport_proc,
-        auth_proc:      auth_proc,
-        serial_proc:    serial_proc,
-        mod_state:      mod_state}}
+    initial_state = %{
+      mod:                 mod,
+      mod_state:           mod_state,
+      state:               :init,
+      transport_mod:       transport_mod,
+      transport_proc:      transport_proc,
+      auth_mod:            auth_mod,
+      auth_proc:           auth_proc,
+      serial_proc:         serial_proc,
+      unique_name:         nil,
+      hello_serial:        nil,
+      buffer:              << >>,
+      unwrap_values:       true
+    }
+
+    {:connect, :init, initial_state}
   end
 
 
@@ -235,20 +311,6 @@ defmodule DBux.Connection do
 
       {:error, reason} ->
         Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send method call: #{inspect(reason)}")
-        {:reply, {:error, reason}, state}
-    end
-  end
-
-
-  @doc false
-  def handle_call({:dbux_request_name, name}, _sender, %{state: :ready} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: request name when ready")
-    case send_request_name(name, state) do
-      {:ok, serial} ->
-        {:reply, {:ok, serial}, state}
-
-      {:error, reason} ->
-        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to request name: #{inspect(reason)}")
         {:reply, {:error, reason}, state}
     end
   end
@@ -424,10 +486,5 @@ defmodule DBux.Connection do
 
   defp send_hello(state) do
     send_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus", state)
-  end
-
-
-  defp send_request_name(name, state) do
-    send_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName", [%DBux.Value{type: :string, value: name}, %DBux.Value{type: :uint32, value: 0}], "org.freedesktop.DBus", state)
   end
 end
