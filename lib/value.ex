@@ -700,7 +700,7 @@ defmodule DBux.Value do
 
 
   def unmarshall(bitstring, endianness, :object_path, nil, unwrap_values, depth) when is_binary(bitstring) and is_atom(endianness) do
-    unmarshall(bitstring, endianness, :string, nil, unwrap_values, depth)
+    unmarshall(bitstring, endianness, :string, nil, unwrap_values, depth) |> override_type(:object_path)
   end
 
 
@@ -752,6 +752,11 @@ defmodule DBux.Value do
       _ -> align - padding
     end
   end
+
+
+  defp override_type({:ok, {value, rest}}, type) when is_map(value), do: {:ok, {%{value | type: type}, rest}}
+  defp override_type({:ok, {value, rest}}, type), do: {:ok, {value, rest}}
+  defp override_type({:error, reason}, _type), do: {:error, reason}
 
 
   defp debug(message, depth) when is_number(depth) and is_binary(message) do
