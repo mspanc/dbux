@@ -155,7 +155,7 @@ defmodule DBux.Transport.TCP do
   """
   def handle_info({:tcp_closed, _}, %{parent: parent} = state) do
     Logger.warn "[DBux.Connection #{inspect(self())}] TCP connection closed"
-    send(parent, :transport_down)
+    send(parent, :dbux_transport_down)
     {:disconnect, {:error, :tcp_closed}, state}
   end
 
@@ -169,7 +169,7 @@ defmodule DBux.Transport.TCP do
   def handle_info({:tcp, _sock, "OK " <> _}, %{state: :handshake, parent: parent} = state) do
     Logger.debug "[DBux.Connection #{inspect(self())}] Authentication succeeded"
     # TODO send TCP to non-line mode
-    send(parent, :authentication_succeeded)
+    send(parent, :dbux_authentication_succeeded)
     {:noreply, %{state | state: :authenticated}}
   end
 
@@ -182,8 +182,8 @@ defmodule DBux.Transport.TCP do
   """
   def handle_info({:tcp, _sock, "ERROR " <> reason}, %{state: :handshake, parent: parent} = state) do
     Logger.warn "[DBux.Connection #{inspect(self())}] Authentication error: #{reason}"
-    send(parent, :authentication_error)
-    {:disconnect, {:error, :authentication_error}, state}
+    send(parent, :dbux_authentication_error)
+    {:disconnect, {:error, :dbux_authentication_error}, state}
   end
 
 
@@ -195,21 +195,8 @@ defmodule DBux.Transport.TCP do
   """
   def handle_info({:tcp, _sock, "REJECTED " <> _, reason}, %{state: :handshake, parent: parent} = state) do
     Logger.warn "[DBux.Connection #{inspect(self())}] Authentication failed: #{reason}"
-    send(parent, :authentication_failed)
-    {:disconnect, {:error, :authentication_failed}, state}
-  end
-
-
-  @doc """
-  Handles asynchronously a line received from DBus Daemon if authentication
-  has failed.
-
-  It always causes disconnect and alters state with `state: :handshake`.
-  """
-  def handle_info({:tcp, _sock, "REJECTED " <> _, reason}, %{state: :handshake, parent: parent} = state) do
-    Logger.warn "[DBux.Connection #{inspect(self())}] Authentication failed: #{reason}"
-    send(parent, :authentication_failed)
-    {:disconnect, {:error, :authentication_failed}, state}
+    send(parent, :dbux_authentication_failed)
+    {:disconnect, {:error, :dbux_authentication_failed}, state}
   end
 
 
@@ -220,7 +207,7 @@ defmodule DBux.Transport.TCP do
   """
   def handle_info({:tcp, _, data}, %{state: :ready, parent: parent} = state) do
     Logger.debug "[DBux.Connection #{inspect(self())}] TCP read: #{inspect(data)}"
-    send(parent, {:receive, data})
+    send(parent, {:dbux_transport_receive, data})
     {:noreply, state}
   end
 end

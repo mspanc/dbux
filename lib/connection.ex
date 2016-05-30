@@ -1,6 +1,6 @@
 defmodule DBux.Connection do
   require Logger
-  use GenServer
+  use Connection
 
   @connect_timeout 5000
   @reconnect_timeout 5000
@@ -13,7 +13,7 @@ defmodule DBux.Connection do
   Returning `{:ok, state}` will cause `start_link/5` to return
   `{:ok, pid}` and the process to enter its loop with state `state`
   """
-  @callback init(module, map, module, map) ::
+  @callback init(module, map, module, map, String.t) ::
     {:ok, any}
 
   @doc """
@@ -37,7 +37,7 @@ defmodule DBux.Connection do
 
   Returning `{:noreply, state}` will cause to update state with `state`.
   """
-  @callback handle_method_call(number, String.t, String.t, String.t, [] | [%DBux.Value{}], any) ::
+  @callback handle_method_call(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
     {:noreply, any}
 
   @doc """
@@ -45,7 +45,7 @@ defmodule DBux.Connection do
 
   Returning `{:noreply, state}` will cause to update state with `state`.
   """
-  @callback handle_method_return(number, number, %DBux.Value{}, any) ::
+  @callback handle_method_return(DBux.Serial.t, DBux.Serial.t, DBux.Value.list_of_values, any) ::
     {:noreply, any}
 
   @doc """
@@ -53,7 +53,7 @@ defmodule DBux.Connection do
 
   Returning `{:noreply, state}` will cause to update state with `state`.
   """
-  @callback handle_error(number, number, String.t, any) ::
+  @callback handle_error(DBux.Serial.t, DBux.Serial.t, String.t, DBux.Value.list_of_values, any) ::
     {:noreply, any}
 
   @doc """
@@ -61,7 +61,7 @@ defmodule DBux.Connection do
 
   Returning `{:noreply, state}` will cause to update state with `state`.
   """
-  @callback handle_signal(number, String.t, String.t, String.t, any) ::
+  @callback handle_signal(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
     {:noreply, any}
 
 
@@ -72,7 +72,7 @@ defmodule DBux.Connection do
       # Default implementations
 
       @doc false
-      def init(_transport_mod, _transport_opts, _auth_mod, _auth_opts) do
+      def init(_transport_mod, _transport_opts, _auth_mod, _auth_opts, _name) do
         {:ok, %{}}
       end
 
@@ -87,33 +87,33 @@ defmodule DBux.Connection do
       end
 
       @doc false
-      def handle_method_call(_serial, _path, _member, _interface, _values, state) do
+      def handle_method_call(_serial, _path, _member, _interface, _body, state) do
         {:noreply, state}
       end
 
       @doc false
-      def handle_method_return(_serial, _reply_serial, return_value, state) do
+      def handle_method_return(_serial, _reply_serial, _body, state) do
         {:noreply, state}
       end
 
       @doc false
-      def handle_error(_serial, _reply_serial, _error_name, state) do
+      def handle_error(_serial, _reply_serial, _error_name, _body, state) do
         {:noreply, state}
       end
 
       @doc false
-      def handle_signal(_serial, _path, _member, _interface, state) do
+      def handle_signal(_serial, _path, _member, _interface, _body, state) do
         {:noreply, state}
       end
 
       defoverridable [
-        init: 4,
+        init: 5,
         handle_up: 1,
         handle_down: 1,
         handle_method_call: 6,
         handle_method_return: 4,
-        handle_error: 4,
-        handle_signal: 5]
+        handle_error: 5,
+        handle_signal: 6]
     end
   end
 
@@ -140,12 +140,12 @@ defmodule DBux.Connection do
   It returns the same body as `GenServer.start_link`.
   """
   @spec start_link(module, module, map, module, map) :: GenServer.on_start
-  def start_link(mod, transport_mod, transport_opts, auth_mod, auth_opts, requested_name \\ nil) when is_binary(requested_name) or is_nil(requested_name) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}, requested_name = #{inspect(requested_name)}")
+  def start_link(mod, transport_mod, transport_opts, auth_mod, auth_opts) do
+    Logger.debug("[DBux.Connection #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}")
 
     initial_state = %{
       mod:                 mod,
-      requested_name:      requested_name,
+      mod_state:           nil,
       state:               :init,
       transport_mod:       transport_mod,
       transport_opts:      transport_opts,
@@ -156,7 +156,6 @@ defmodule DBux.Connection do
       serial_proc:         nil,
       unique_name:         nil,
       hello_serial:        nil,
-      request_name_serial: nil,
       buffer:              << >>,
       unwrap_values:       true
     }
@@ -173,25 +172,33 @@ defmodule DBux.Connection do
   Please note that `{:error, reason}` does not mean error reply over D-Bus, it
   means an internal application error.
   """
-  @spec do_method_call(pid, String.t, String.t, String.t, list, String.t | nil) :: :ok | {:error, any}
+  @spec do_method_call(pid, String.t, String.t, String.t, list, String.t | nil) :: {:ok, DBux.Serial.t} | {:error, any}
   def do_method_call(bus, path, interface, member, body \\ [], destination \\ nil) when is_pid(bus) and is_binary(path) and is_binary(interface) and is_binary(member) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
     Connection.call(bus, {:send_method_call, path, interface, member, body, destination})
   end
 
 
+  @spec do_request_name(pid, String.t) :: :ok | {:error, any}
+  def do_request_name(bus, name) do
+    Connection.call(bus, {:request_name, name})
+  end
+
+
   @doc false
-  def init(%{transport_mod: transport_mod, transport_opts: transport_opts, auth_mod: auth_mod, auth_opts: auth_opts} = state) do
+  def init(%{mod: mod, transport_mod: transport_mod, transport_opts: transport_opts, auth_mod: auth_mod, auth_opts: auth_opts} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Init")
 
     {:ok, transport_proc} = transport_mod.start_link(self(), transport_opts)
     {:ok, auth_proc}      = auth_mod.start_link(self(), auth_opts)
     {:ok, serial_proc}    = DBux.Serial.start_link()
+    {:ok, mod_state}      = mod.init(transport_mod, transport_opts, auth_mod, auth_opts)
 
     {:connect, :init,
       %{state |
         transport_proc: transport_proc,
         auth_proc:      auth_proc,
-        serial_proc:    serial_proc}}
+        serial_proc:    serial_proc,
+        mod_state:      mod_state}}
   end
 
 
@@ -233,6 +240,20 @@ defmodule DBux.Connection do
 
 
   @doc false
+  def handle_call({:request_name, name}, _sender, %{state: :ready} = state) do
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: request name when ready")
+    case send_request_name(name, state) do
+      {:ok, serial} ->
+        {:reply, {:ok, serial}, state}
+
+      {:error, reason} ->
+        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to request name: #{inspect(reason)}")
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+
+  @doc false
   def handle_call(_message, _sender, state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when not authenticated")
     {:reply, {:error, :not_authenticated}, state}
@@ -240,7 +261,7 @@ defmodule DBux.Connection do
 
 
   @doc false
-  def handle_info(:authentication_succeeded, %{state: :authenticating, transport_mod: transport_mod, transport_proc: transport_proc} = state) do
+  def handle_info(:dbux_authentication_succeeded, %{state: :authenticating, transport_mod: transport_mod, transport_proc: transport_proc} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication succeeded")
 
     Logger.debug("[DBux.Connection #{inspect(self())}] Beginning message transmission")
@@ -266,28 +287,28 @@ defmodule DBux.Connection do
 
 
   @doc false
-  def handle_info(:authentication_failed, %{state: :authenticating} = state) do
+  def handle_info(:dbux_authentication_failed, %{state: :authenticating} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication failed")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
-  def handle_info(:authentication_error, %{state: :authenticating} = state) do
+  def handle_info(:dbux_authentication_error, %{state: :authenticating} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication error")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
-  def handle_info(:transport_down, state) do
+  def handle_info(:dbux_transport_down, state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Transport down")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
-  def handle_info({:receive, bitstream}, %{state: :authenticated, hello_serial: hello_serial, requested_name: requested_name, buffer: buffer, unwrap_values: unwrap_values} = state) do
+  def handle_info({:dbux_transport_receive, bitstream}, %{mod: mod, mod_state: mod_state, state: :authenticated, hello_serial: hello_serial, buffer: buffer, unwrap_values: unwrap_values} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when authenticated")
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
@@ -296,22 +317,11 @@ defmodule DBux.Connection do
         cond do
           message.reply_serial == hello_serial ->
             unique_name = hd(message.body)
-            Logger.info("[DBux.Connection #{inspect(self())}] Got unique name #{unique_name}")
+            Logger.debug("[DBux.Connection #{inspect(self())}] Got unique name #{unique_name}")
 
-            case requested_name do
-              nil ->
-                {:noreply, %{state | state: :ready, unique_name: unique_name, buffer: rest}}
-
-              _ ->
-                case send_request_name(requested_name, state) do
-                  {:ok, serial} ->
-                    Logger.debug("[DBux.Connection #{inspect(self())}] Sent name request for #{requested_name}")
-                    {:noreply, %{state | state: :ready, unique_name: unique_name, buffer: rest, request_name_serial: serial}}
-
-                  {:error, reason} ->
-                    Logger.warn("[DBux.Connection #{inspect(self())}] Failed to request name: reason = #{inspect(reason)}")
-                    {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
-                end
+            case mod.handle_up(mod_state) do
+              {:noreply, new_mod_state} ->
+                {:noreply, %{state | state: :ready, unique_name: unique_name, buffer: rest, mod_state: new_mod_state}}
             end
 
           true ->
@@ -330,27 +340,28 @@ defmodule DBux.Connection do
 
 
   @doc false
-  def handle_info({:receive, bitstream}, %{state: :ready, request_name_serial: request_name_serial, buffer: buffer, unwrap_values: unwrap_values} = state) do
+  def handle_info({:dbux_transport_receive, bitstream}, %{mod: mod, mod_state: mod_state, state: :ready, buffer: buffer, unwrap_values: unwrap_values} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when ready")
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
-        Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message #{inspect(message)}")
-        cond do
-          message.reply_serial == request_name_serial ->
-            case message.message_type do
-              :method_return ->
-                Logger.info("[DBux.Connection #{inspect(self())}] Got requested name")
-                {:noreply, %{state | buffer: rest}}
+        callback_return = case message.message_type do
+          :method_call ->
+            mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state)
 
-              :error ->
-                Logger.warn("[DBux.Connection #{inspect(self())}] Failed to get requested name")
-                {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
-            end
+          :method_return ->
+            mod.handle_method_return(message.serial, message.reply_serial, message.body, mod_state)
 
-          true ->
-            # TODO forward up to the callback
-            {:noreply, %{state | buffer: rest}}
+          :error ->
+            mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, mod_state)
+
+          :signal ->
+            mod.handle_signal(message.serial, message.path, message.member, message.interface, message.body, mod_state)
+        end
+
+        case callback_return do
+          {:noreply, new_mod_state} ->
+            {:noreply, %{state | buffer: rest, mod_state: new_mod_state}}
         end
 
       {:error, :bitstring_too_short} ->
@@ -359,6 +370,28 @@ defmodule DBux.Connection do
       {:error, reason} ->
         Logger.warn("[DBux.Connection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
         {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+    end
+  end
+
+
+  @doc false
+  def handle_info(info, %{mod: mod, mod_state: mod_state} = state) do
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Generic, info = #{inspect(info)}")
+    case mod.handle_info(info, mod_state) do
+      {:noreply, new_mod_state} ->
+        {:noreply, %{state | mod_state: new_mod_state}}
+
+      {:noreply, new_mod_state, timeout} ->
+        {:noreply, %{state | mod_state: new_mod_state}, timeout}
+
+      {:connect, info, new_mod_state} ->
+        {:connect, info, %{state | mod_state: new_mod_state}}
+
+      {:disconnect, info, new_mod_state} ->
+        {:disconnect, info, %{state | mod_state: new_mod_state}}
+
+      {:stop, info, new_mod_state} ->
+        {:stop, info, %{state | mod_state: new_mod_state}}
     end
   end
 

@@ -1,4 +1,6 @@
 defmodule DBux.Serial do
+  @type t :: pos_integer
+
   @spec start_link(list) :: GenServer.on_start
   def start_link(opts \\ []) do
     Agent.start_link(fn -> 1 end, opts)
