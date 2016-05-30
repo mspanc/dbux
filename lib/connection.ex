@@ -345,6 +345,8 @@ defmodule DBux.Connection do
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
+        Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message = #{inspect(message)}")
+        
         callback_return = case message.message_type do
           :method_call ->
             mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state)
