@@ -7,7 +7,8 @@ defmodule DBux.Mixfile do
      elixir: "~> 1.0",
      description: description,
      package: package,
-     preferred_cli_env: [espec: :test],
+     test_coverage: [tool: ExCoveralls, test_task: "espec"],
+     preferred_cli_env: [espec: :test, "coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test],
      deps: deps]
   end
 
@@ -17,7 +18,8 @@ defmodule DBux.Mixfile do
 
   defp deps do
     [{:connection, "~> 1.0.2"},
-     {:espec, "~> 0.8.21", only: :test}]
+     {:espec, "~> 0.8.21", only: :test},
+     {:excoveralls, "~> 0.5", only: :test}]
   end
 
   defp description do
