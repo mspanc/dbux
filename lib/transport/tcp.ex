@@ -10,25 +10,26 @@ defmodule DBux.Transport.TCP do
   @connect_timeout   5000
   @reconnect_timeout 1000
 
+  @debug !is_nil(System.get_env("DBUX_DEBUG"))
 
   def start_link(parent, options) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Start link")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Start link")
     Connection.start_link(__MODULE__, {parent, options})
   end
 
 
   @doc false
   def init({parent, options}) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Init")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Init")
     {:ok, %{ parent: parent, sock: nil, state: :handshake, host: options[:host], port: options[:port]}}
   end
 
 
   def connect(_, %{host: host, port: port} = state) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Connect: Connecting to #{host}:#{port}")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Connect: Connecting to #{host}:#{port}")
     case :gen_tcp.connect(to_char_list(host), port, [active: true, mode: :binary, packet: :line, keepalive: true, nodelay: true], @connect_timeout) do
       {:ok, sock} ->
-        Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Connect: Successfully connected to #{host}:#{port}")
+        if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Connect: Successfully connected to #{host}:#{port}")
         {:ok, %{state | sock: sock, state: :handshake}}
 
       {:error, reason} ->
@@ -39,26 +40,26 @@ defmodule DBux.Transport.TCP do
 
 
   def disconnect(_, %{sock: sock} = state) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Disconnect")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Disconnect")
     :ok = :gen_tcp.close(sock)
     {:backoff, @reconnect_timeout, %{state | sock: nil, state: :handshake}}
   end
 
 
   def do_connect(transport_proc) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do connect: #{inspect(transport_proc)}")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do connect: #{inspect(transport_proc)}")
     Connection.call(transport_proc, :connect)
   end
 
 
   def do_send(transport_proc, data) when is_binary(data) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do send: #{inspect(transport_proc)}")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do send: #{inspect(transport_proc)}")
     Connection.call(transport_proc, {:send, data})
   end
 
 
   def do_begin(transport_proc) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do begin: #{inspect(transport_proc)}")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do begin: #{inspect(transport_proc)}")
     Connection.call(transport_proc, :begin)
   end
 
@@ -69,7 +70,7 @@ defmodule DBux.Transport.TCP do
   It instructs to connect and replies `:ok` to the sender.
   """
   def handle_call(:connect, _sender, %{sock: nil} = state) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Connect while disconnected")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Connect while disconnected")
     {:connect, :call, :ok, state}
   end
 
@@ -80,7 +81,7 @@ defmodule DBux.Transport.TCP do
   It replies `{:error, :already_connected}` to the sender.
   """
   def handle_call(:connect, _sender, state) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Connect while connected")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Connect while connected")
     {:reply, {:error, :already_connected}, state}
   end
 
@@ -92,7 +93,7 @@ defmodule DBux.Transport.TCP do
   It replies `{:error, :not_connected}` to the sender.
   """
   def handle_call({:send, _}, _sender, %{sock: nil} = state) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Send while disconnected")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Send while disconnected")
     {:reply, {:error, :not_connected}, state}
   end
 
@@ -104,7 +105,7 @@ defmodule DBux.Transport.TCP do
   `{:error, reason}` otherwise.
   """
   def handle_call({:send, data}, _sender, %{sock: sock} = state) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Send while connected")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Send while connected")
     case :gen_tcp.send(sock, data) do
       :ok ->
         {:reply, :ok, state}
@@ -122,7 +123,7 @@ defmodule DBux.Transport.TCP do
   It replies `{:error, :not_connected}` to the sender.
   """
   def handle_call(:begin, _sender, %{sock: nil} = state) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Begin while disconnected")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Begin while disconnected")
     {:reply, {:error, :not_connected}, state}
   end
 
@@ -134,7 +135,7 @@ defmodule DBux.Transport.TCP do
   `{:error, reason}` otherwise.
   """
   def handle_call(:begin, _sender, %{sock: sock} = state) do
-    Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Begin while connected")
+    if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Begin while connected")
     case :gen_tcp.send(sock, "BEGIN\r\n") do
       :ok ->
         :inet.setopts(sock, [packet: :raw, active: true])
@@ -166,7 +167,7 @@ defmodule DBux.Transport.TCP do
   It alters state with `state: :authenticated`.
   """
   def handle_info({:tcp, _sock, "OK " <> _}, %{state: :handshake, parent: parent} = state) do
-    Logger.debug "[DBux.Connection #{inspect(self())}] Authentication succeeded"
+    if @debug, do: Logger.debug "[DBux.Connection #{inspect(self())}] Authentication succeeded"
     # TODO send TCP to non-line mode
     send(parent, :dbux_authentication_succeeded)
     {:noreply, %{state | state: :authenticated}}
@@ -205,7 +206,7 @@ defmodule DBux.Transport.TCP do
   It returns `{:disconnect, {:error, :tcp_error}, state}`.
   """
   def handle_info({:tcp, _, data}, %{state: :ready, parent: parent} = state) do
-    Logger.debug "[DBux.Connection #{inspect(self())}] TCP read: #{inspect(data)}"
+    if @debug, do: Logger.debug "[DBux.Connection #{inspect(self())}] TCP read: #{inspect(data)}"
     send(parent, {:dbux_transport_receive, data})
     {:noreply, state}
   end
