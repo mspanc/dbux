@@ -675,16 +675,30 @@ defmodule DBux.Value do
             {:error, :bitstring_too_short}
 
           else
-            padding_size = compute_padding_size(length + 1, :string)
-            << body :: binary-size(length), 0, padding :: binary-size(padding_size), rest :: binary >> = rest
-            if @debug, do: debug("Unmarshalled string: length = #{inspect(length)}, padding_size = #{inspect(padding_size)}, body = #{inspect(body)}", depth)
+            if length != 0 do
+              padding_size = compute_padding_size(length + 1, :string)
+              << body :: binary-size(length), 0, padding :: binary-size(padding_size), rest :: binary >> = rest
+              if @debug, do: debug("Unmarshalled string: length = #{inspect(length)}, padding_size = #{inspect(padding_size)}, body = #{inspect(body)}", depth)
 
-            case unwrap_values do
-              true ->
-                {:ok, body, rest}
+              case unwrap_values do
+                true ->
+                  {:ok, body, rest}
 
-              false ->
-                {:ok, %DBux.Value{type: :string, value: body}, rest}
+                false ->
+                  {:ok, %DBux.Value{type: :string, value: body}, rest}
+              end
+
+            else
+              << 0, rest :: binary >> = rest
+              if @debug, do: debug("Unmarshalled empty string: length = #{inspect(length)}", depth)
+
+              case unwrap_values do
+                true ->
+                  {:ok, "", rest}
+
+                false ->
+                  {:ok, %DBux.Value{type: :string, value: ""}, rest}
+              end
             end
           end
 
@@ -703,23 +717,29 @@ defmodule DBux.Value do
   defp parse_array(bitstring, endianness, subtype_major, subtype_minor, acc, unwrap_values, depth) when is_bitstring(bitstring) and is_list(acc) do
     if @debug, do: debug("Unmarshalling array element: next element, bitstring = #{inspect(bitstring)}, subtype_major = #{inspect(subtype_major)}, acc = #{inspect(acc)}", depth)
 
-    case unmarshall(bitstring, endianness, subtype_major, subtype_minor, unwrap_values, depth + 1) do
-      {:ok, value, rest} ->
-        if rest != << >> do
-          parsed_bytes = byte_size(bitstring) - byte_size(rest)
-          padding_size = compute_padding_size(parsed_bytes, subtype_major)
-          << padding :: binary-size(padding_size), rest_without_padding :: binary >> = rest
-          if @debug, do: debug("Unmarshalled array element: value = #{inspect(value)}, parsed bytes = #{byte_size(bitstring) - byte_size(rest)}, padding_size = #{inspect(padding_size)}, rest_without_padding = #{inspect(rest_without_padding)}", depth)
+    if bitstring == << >> do
+      if @debug, do: debug("Unmarshalled array element: finish (no more bitstring)", depth)
+      {:ok, acc}
 
-          parse_array(rest_without_padding, endianness, subtype_major, subtype_minor, acc ++ [value], unwrap_values, depth)
+    else
+      case unmarshall(bitstring, endianness, subtype_major, subtype_minor, unwrap_values, depth + 1) do
+        {:ok, value, rest} ->
+          if rest != << >> do
+            parsed_bytes = byte_size(bitstring) - byte_size(rest)
+            padding_size = compute_padding_size(parsed_bytes, subtype_major)
+            << padding :: binary-size(padding_size), rest_without_padding :: binary >> = rest
+            if @debug, do: debug("Unmarshalled array element: value = #{inspect(value)}, parsed bytes = #{byte_size(bitstring) - byte_size(rest)}, padding_size = #{inspect(padding_size)}, rest_without_padding = #{inspect(rest_without_padding)}", depth)
 
-        else
-          if @debug, do: debug("Unmarshalled array element: finish", depth)
-          {:ok, acc ++ [value]}
-        end
+            parse_array(rest_without_padding, endianness, subtype_major, subtype_minor, acc ++ [value], unwrap_values, depth)
 
-      {:error, reason} ->
-        {:error, reason}
+          else
+            if @debug, do: debug("Unmarshalled array element: finish (no more rest)", depth)
+            {:ok, acc ++ [value]}
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 

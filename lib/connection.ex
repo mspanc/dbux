@@ -140,19 +140,25 @@ defmodule DBux.Connection do
   It returns the same body as `GenServer.start_link`.
   """
   @spec start_link(module, module, map, module, map) :: GenServer.on_start
-  def start_link(mod, transport_mod, transport_opts, auth_mod, auth_opts) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}")
+  def start_link(mod, transport_mod, transport_opts, auth_mod, auth_opts, requested_name \\ nil) when is_binary(requested_name) or is_nil(requested_name) do
+    Logger.debug("[DBux.Connection #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}, requested_name = #{inspect(requested_name)}")
 
     initial_state = %{
-      mod:            mod,
-      state:          :init,
-      transport_mod:  transport_mod,
-      transport_opts: transport_opts,
-      transport_proc: nil,
-      auth_mod:       auth_mod,
-      auth_opts:      auth_opts,
-      auth_proc:      nil,
-      serial_proc:    nil
+      mod:                 mod,
+      requested_name:      requested_name,
+      state:               :init,
+      transport_mod:       transport_mod,
+      transport_opts:      transport_opts,
+      transport_proc:      nil,
+      auth_mod:            auth_mod,
+      auth_opts:           auth_opts,
+      auth_proc:           nil,
+      serial_proc:         nil,
+      unique_name:         nil,
+      hello_serial:        nil,
+      request_name_serial: nil,
+      buffer:              << >>,
+      unwrap_values:       true
     }
 
     Connection.start_link(__MODULE__, initial_state)
@@ -244,17 +250,17 @@ defmodule DBux.Connection do
 
         Logger.debug("[DBux.Connection #{inspect(self())}] Sending Hello")
         case send_hello(state) do
-          {:ok, _} ->
-            {:noreply, %{state | state: :authenticated}}
+          {:ok, serial} ->
+            {:noreply, %{state | state: :authenticated, hello_serial: serial}}
 
           {:error, reason} ->
             Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send Hello: #{inspect(reason)}")
-            {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
+            {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
         end
 
       {:error, reason} ->
         Logger.warn("[DBux.Connection #{inspect(self())}] Failed to begin message transmission: #{inspect(reason)}")
-        {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
+        {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
     end
   end
 
@@ -262,32 +268,96 @@ defmodule DBux.Connection do
   @doc false
   def handle_info(:authentication_failed, %{state: :authenticating} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication failed")
-    {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
+    {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info(:authentication_error, %{state: :authenticating} = state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication error")
-    {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
+    {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info(:transport_down, state) do
     Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Transport down")
-    {:noreply, %{state | state: :init}} # FIXME terminate, disconnect transport
+    {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
-  def handle_info({:receive, data}, %{state: :authenticated} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received")
+  def handle_info({:receive, bitstream}, %{state: :authenticated, hello_serial: hello_serial, requested_name: requested_name, buffer: buffer, unwrap_values: unwrap_values} = state) do
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when authenticated")
 
-    # TODO handle case in which amount of data is smaller than header
-    DBux.Message.unmarshall(data)
+    case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
+      {:ok, {message, rest}} ->
+        cond do
+          message.reply_serial == hello_serial ->
+            unique_name = hd(message.body)
+            Logger.info("[DBux.Connection #{inspect(self())}] Got unique name #{unique_name}")
 
-    {:noreply, state}
+            case requested_name do
+              nil ->
+                {:noreply, %{state | state: :ready, unique_name: unique_name, buffer: rest}}
+
+              _ ->
+                case send_request_name(requested_name, state) do
+                  {:ok, serial} ->
+                    Logger.debug("[DBux.Connection #{inspect(self())}] Sent name request for#{requested_name}")
+                    {:noreply, %{state | state: :ready, unique_name: unique_name, buffer: rest, request_name_serial: serial}}
+
+                  {:error, reason} ->
+                    Logger.warn("[DBux.Connection #{inspect(self())}] Failed to request name: reason = #{inspect(reason)}")
+                    {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+                end
+            end
+
+          true ->
+            Logger.warn("[DBux.Connection #{inspect(self())}] Got unknown reply #{inspect(message)}")
+            {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+        end
+
+      {:error, :bitstring_too_short} ->
+        {:noreply, %{state | buffer: buffer <> bitstream}}
+
+      {:error, reason} ->
+        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
+        {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+    end
+  end
+
+
+  @doc false
+  def handle_info({:receive, bitstream}, %{state: :ready, request_name_serial: request_name_serial, buffer: buffer, unwrap_values: unwrap_values} = state) do
+    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when ready")
+
+    case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
+      {:ok, {message, rest}} ->
+        cond do
+          message.reply_serial == request_name_serial ->
+            case message.message_type do
+              :method_return ->
+                Logger.info("[DBux.Connection #{inspect(self())}] Got requested name")
+                {:noreply, %{state | buffer: rest}}
+
+              :error ->
+                Logger.warn("[DBux.Connection #{inspect(self())}] Failed to get requested name")
+                {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+            end
+
+          true ->
+            # TODO forward up to the callback
+            {:noreply, %{state | buffer: rest}}
+        end
+
+      {:error, :bitstring_too_short} ->
+        {:noreply, %{state | buffer: buffer <> bitstream}}
+
+      {:error, reason} ->
+        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
+        {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+    end
   end
 
 
@@ -313,5 +383,10 @@ defmodule DBux.Connection do
 
   defp send_hello(state) do
     send_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus", state)
+  end
+
+
+  defp send_request_name(name, state) do
+    send_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName", [%DBux.Value{type: :string, value: name}, %DBux.Value{type: :uint32, value: 0}], "org.freedesktop.DBus", state)
   end
 end

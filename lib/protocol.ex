@@ -72,6 +72,24 @@ defmodule DBux.Protocol do
   end
 
 
+  def marshall_bitstring(values, endianness) when is_list(values) and is_atom(endianness) do
+    marshall_bitstring_step(values, endianness, << >>, << >>)
+  end
+
+
+  defp marshall_bitstring_step([], _endianness, bitstring_acc, signature_acc) do
+    {:ok, {bitstring_acc, signature_acc}}
+  end
+
+
+  defp marshall_bitstring_step([head|tail], endianness, bitstring_acc, signature_acc) do
+    case DBux.Value.marshall(head, endianness) do
+      {:ok, value, _padding} ->
+        marshall_bitstring_step(tail, endianness, bitstring_acc <> value, signature_acc <> DBux.Type.signature(head))
+    end
+  end
+
+
   defp unmarshall_bitstring_step(bitstring, _endianness, [], _unwrap_values, acc) do
     {:ok, {acc, bitstring}}
   end

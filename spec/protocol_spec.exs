@@ -216,4 +216,54 @@ defmodule DBux.ProtocolSpec do
       end
     end
   end
+
+
+  describe ".marshall_bitstring/2" do
+    let :endianness, do: :little_endian
+
+    context "if passed list of values is empty" do
+      let :values, do: []
+
+      it "should return ok result" do
+        expect(described_module.marshall_bitstring(values, endianness)).to be_ok_result
+      end
+
+      it "should return an empty signature" do
+        {:ok, {_bitstring, signature}} = described_module.marshall_bitstring(values, endianness)
+        expect(signature).to eq ""
+      end
+
+      it "should return an empty bitstring" do
+        {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
+        expect(bitstring).to eq ""
+      end
+    end
+
+
+    context "if passed list of values is non-empty" do
+      context "and it contains only simple types" do
+        let :values, do: [
+          %DBux.Value{type: :int32, value: 1234},
+          %DBux.Value{type: :string, value: "abcde"}
+        ]
+
+        it "should return ok result" do
+          expect(described_module.marshall_bitstring(values, endianness)).to be_ok_result
+        end
+
+        it "should return a signature that matches the types" do
+          {:ok, {_bitstring, signature}} = described_module.marshall_bitstring(values, endianness)
+          expect(signature).to eq "is"
+        end
+
+        it "should return a bitstring that contains serialized values" do
+          {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
+          expect(bitstring).to eq <<210, 4, 0, 0, 5, 0, 0, 0, 97, 98, 99, 100, 101, 0, 0, 0>>
+        end
+      end
+    end
+  end
+
+
+
 end

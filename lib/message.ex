@@ -127,8 +127,9 @@ defmodule DBux.Message do
     # Length in bytes of the message body, starting from the end of the header.
     # The header ends after its alignment padding to an 8-boundary.
     #
-    {:ok, header_body_length_bitstring, _} = %DBux.Value{type: :uint32, value: 0} |> DBux.Value.marshall(endianness)
-    # FIXME
+
+    {:ok, {body_bitstring, body_signature}} = DBux.Protocol.marshall_bitstring(message.body, endianness)
+    {:ok, header_body_length_bitstring, _} = %DBux.Value{type: :uint32, value: byte_size(body_bitstring)} |> DBux.Value.marshall(endianness)
 
 
     # uint32
@@ -185,7 +186,7 @@ defmodule DBux.Message do
         header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 6}, %DBux.Value{type: :variant, subtype: :string, value: message.destination}]}]
     end
 
-    header_fields_value = case message.signature do
+    header_fields_value = case body_signature do
       "" ->
         header_fields_value
 
@@ -212,7 +213,7 @@ defmodule DBux.Message do
       header_fields_bitstring
       |> DBux.Value.align(8)
 
-    {:ok, message_bitstring}
+    {:ok, message_bitstring <> body_bitstring}
   end
 
 
@@ -226,9 +227,9 @@ defmodule DBux.Message do
 
   If not enough data was given it returns `{:error, :bitstring_too_short}`.
   """
-  @spec unmarshall(Bitstring) :: {:ok, %DBux.Message{}, Bitstring} | {:error, any}
-  def unmarshall(<< >>), do: {:error, :bitstring_too_short}
-  def unmarshall(bitstring) when is_binary(bitstring) do
+  @spec unmarshall(Bitstring, boolean) :: {:ok, %DBux.Message{}, Bitstring} | {:error, any}
+  def unmarshall(<< >>, _unwrap_values), do: {:error, :bitstring_too_short}
+  def unmarshall(bitstring, unwrap_values) when is_binary(bitstring) do
     << endianness_bitstring, rest :: binary >> = bitstring
 
     endianness = case endianness_bitstring do
@@ -263,7 +264,7 @@ defmodule DBux.Message do
           Map.put(acc, message_key, header_field_value)
         end)
 
-        case DBux.Protocol.unmarshall_bitstring(rest, endianness, message.signature, true) do
+        case DBux.Protocol.unmarshall_bitstring(rest, endianness, message.signature, unwrap_values) do
           {:ok, {body, rest}} ->
             {:ok, {message |> Map.put(:body, body), rest}}
 

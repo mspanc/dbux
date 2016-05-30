@@ -30,6 +30,24 @@ defmodule DBux.Type do
   def signature(:variant),     do: "v"
 
 
+  def signature(%DBux.Value{type: :array, subtype: [subtype]}) do
+    "a" <> signature(subtype)
+  end
+
+
+  def signature(%DBux.Value{type: :struct, subtype: subtypes}) when is_list(subtypes) do
+    "(" <> Enum.map(subtypes, fn(subtype) -> signature(subtype) end) <> ")"
+  end
+
+
+  def signature(%DBux.Value{type: :dict_entry, subtype: subtypes}) when is_list(subtypes) do
+    "{" <> Enum.map(subtypes, fn(subtype) -> signature(subtype) end) <> "}"
+  end
+
+
+  def signature(%DBux.Value{type: type}), do: signature(type)
+
+
   @doc """
   Returns atom that contains atom identifying type.
 
