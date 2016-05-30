@@ -642,21 +642,26 @@ defmodule DBux.Value do
 
   def unmarshall(bitstring, endianness, :signature, nil, unwrap_values, depth) when is_binary(bitstring) and is_atom(endianness) do
     if @debug, do: debug("Unmarshalling signature: bitstring = #{inspect(bitstring)}", depth)
-    if byte_size(bitstring) < DBux.Type.align_size(:signature) do
+    if byte_size(bitstring) < 2 do # must contain at least size + nul byte
       {:error, :bitstring_too_short}
 
     else
       << length, rest :: binary >> = bitstring
-      << body :: binary-size(length), 0, rest :: binary >> = rest
 
-      if @debug, do: debug("Unmarshalling signature: length = #{inspect(length)}, body = #{inspect(body)}", depth)
+      if byte_size(rest) <= length do
+        {:error, :bitstring_too_short}
 
-      case unwrap_values do
-        true ->
-          {:ok, {body, rest}}
+      else
+        << body :: binary-size(length), 0, rest :: binary >> = rest
+        if @debug, do: debug("Unmarshalling signature: length = #{inspect(length)}, body = #{inspect(body)}", depth)
 
-        false ->
-          {:ok, {%DBux.Value{type: :signature, value: body}, rest}}
+        case unwrap_values do
+          true ->
+            {:ok, {body, rest}}
+
+          false ->
+            {:ok, {%DBux.Value{type: :signature, value: body}, rest}}
+        end
       end
     end
   end
