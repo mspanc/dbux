@@ -23,7 +23,7 @@ defmodule DBux.Message do
     interface:    String.t,
     member:       String.t,
     error_name:   String.t,
-    body:         [] | [%DBux.Value{}],
+    body:         DBux.Value.list_of_values,
     signature:    String.t,
     sender:       String.t,
     unix_fds:     number,
@@ -43,7 +43,7 @@ defmodule DBux.Message do
   @doc """
   Creates DBux.Message with attributes appropriate for method call.
   """
-  @spec build_method_call(DBux.Serial.t, String.t, String.t, [] | [%DBux.Value{}], String.t | nil) :: %DBux.Message{}
+  @spec build_method_call(DBux.Serial.t, String.t, String.t, DBux.Value.list_of_values, String.t | nil) :: %DBux.Message{}
   def build_method_call(serial, path, interface, member, body \\ [], destination \\ nil) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
     %DBux.Message{serial: serial, message_type: :method_call, path: path, interface: interface, member: member, body: body, destination: destination}
   end
@@ -52,7 +52,7 @@ defmodule DBux.Message do
   @doc """
   Creates DBux.Message with attributes appropriate for signal.
   """
-  @spec build_signal(DBux.Serial.t, String.t, String.t, String.t,  [] | [%DBux.Value{}]) :: %DBux.Message{}
+  @spec build_signal(DBux.Serial.t, String.t, String.t, String.t,  DBux.Value.list_of_values) :: %DBux.Message{}
   def build_signal(serial, path, interface, member, body \\ []) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) do
     %DBux.Message{serial: serial, message_type: :signal, path: path, interface: interface, member: member, body: body}
   end
@@ -61,7 +61,7 @@ defmodule DBux.Message do
   @doc """
   Creates DBux.Message with attributes appropriate for method return.
   """
-  @spec build_method_return(DBux.Serial.t, DBux.Serial.t, [] | [%DBux.Value{}]) :: %DBux.Message{}
+  @spec build_method_return(DBux.Serial.t, DBux.Serial.t, DBux.Value.list_of_values) :: %DBux.Message{}
   def build_method_return(serial, reply_serial, body \\ []) when is_number(serial) and is_number(reply_serial) and is_list(body) do
     %DBux.Message{serial: serial, message_type: :method_return, reply_serial: reply_serial, body: body}
   end
@@ -70,7 +70,7 @@ defmodule DBux.Message do
   @doc """
   Creates DBux.Message with attributes appropriate for error.
   """
-  @spec build_error(DBux.Serial.t, DBux.Serial.t, String.t, [] | [%DBux.Value{}]) :: %DBux.Message{}
+  @spec build_error(DBux.Serial.t, DBux.Serial.t, String.t, DBux.Value.list_of_values) :: %DBux.Message{}
   def build_error(serial, reply_serial, error_name, body \\ []) when is_number(serial) and is_number(reply_serial) and is_binary(error_name) and is_list(body) do
     %DBux.Message{serial: serial, message_type: :error, reply_serial: reply_serial, error_name: error_name, body: body}
   end

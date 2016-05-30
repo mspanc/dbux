@@ -234,18 +234,67 @@ defmodule DBux.Connection do
 
 
   @doc """
-  Causes bus to synchronously send method call to given path, interface,
-  destination, optionally with body.
+  Sends DBux.Message with attributes appropriate for method call.
 
-  It returns `{:ok, serial}` in case of success, `{:error, reason}` otherwise.
-  Please note that `{:error, reason}` does not mean error reply over D-Bus, it
-  means an internal application error.
+  Returns `{:ok, serial}` on success.
+
+  Returns `{:error, reason}` otherwise. Please note that error does not mean
+  error reply over D-Bus, but internal application error.
+
+  It is a synchronous call.
   """
-  @spec do_method_call(pid, String.t, String.t, String.t, list, String.t | nil) :: {:ok, DBux.Serial.t} | {:error, any}
-  def do_method_call(bus, path, interface, member, body \\ [], destination \\ nil) when is_pid(bus) and is_binary(path) and is_binary(interface) and is_binary(member) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
-    Connection.call(bus, {:dbux_method_call, path, interface, member, body, destination})
+  @spec send_method_call(pid, String.t, String.t, DBux.Value.list_of_values, String.t | nil) :: {:ok, DBux.Serial.t} | {:error, any}
+  def send_method_call(bus, path, interface, member, body \\ [], destination \\ nil) when is_binary(path) and is_binary(interface) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
+    DBux.Connection.call(bus, {:dbux_send_message, DBux.Message.build_method_call(0, path, interface, member, body, destination)})
   end
 
+
+  @doc """
+  Sends DBux.Message with attributes appropriate for signal.
+
+  Returns `{:ok, serial}` on success.
+
+  Returns `{:error, reason}` otherwise. Please note that error does not mean
+  error reply over D-Bus, but internal application error.
+
+  It is a synchronous call.
+  """
+  @spec send_signal(pid, String.t, String.t, String.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
+  def send_signal(bus, path, interface, member, body \\ []) when is_binary(path) and is_binary(interface) and is_list(body) do
+    DBux.Connection.call(bus, {:dbux_send_message, DBux.Message.build_signal(0, path, interface, member, body)})
+  end
+
+
+  @doc """
+  Sends DBux.Message with attributes appropriate for method return.
+
+  Returns `{:ok, serial}` on success.
+
+  Returns `{:error, reason}` otherwise. Please note that error does not mean
+  error reply over D-Bus, but internal application error.
+
+  It is a synchronous call.
+  """
+  @spec send_method_return(pid, DBux.Serial.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
+  def send_method_return(bus, reply_serial, body \\ []) when is_number(reply_serial) and is_list(body) do
+    DBux.Connection.call(bus, {:dbux_send_message, DBux.Message.build_method_return(0, reply_serial, body)})
+  end
+
+
+  @doc """
+  Sends DBux.Message with attributes appropriate for error.
+
+  Returns `{:ok, serial}` on success.
+
+  Returns `{:error, reason}` otherwise. Please note that error does not mean
+  error reply over D-Bus, but internal application error.
+
+  It is a synchronous call.
+  """
+  @spec send_error(pid, DBux.Serial.t, String.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
+  def send_error(bus, reply_serial, error_name, body \\ []) when is_number(reply_serial) and is_binary(error_name) and is_list(body) do
+    DBux.Connection.call(bus, {:dbux_send_message, DBux.Message.build_error(0, reply_serial, error_name, body)})
+  end
 
 
   @doc false
@@ -303,9 +352,16 @@ defmodule DBux.Connection do
 
 
   @doc false
-  def handle_call({:dbux_method_call, path, interface, member, body, destination}, _sender, %{state: :authenticated} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when authenticated")
-    case send_method_call(path, interface, member, body, destination, state) do
+  def handle_call({:dbux_send_message, _message}, _sender, %{state: :init} = state) do
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when not authenticated")
+    {:reply, {:error, :not_authenticated}, state}
+  end
+
+
+  @doc false
+  def handle_call({:dbux_send_message, message}, _sender, state) do
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send message when authenticated: message = #{inspect(message)}")
+    case send_message(message, state) do
       {:ok, serial} ->
         {:reply, {:ok, serial}, state}
 
@@ -313,13 +369,6 @@ defmodule DBux.Connection do
         Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send method call: #{inspect(reason)}")
         {:reply, {:error, reason}, state}
     end
-  end
-
-
-  @doc false
-  def handle_call(_message, _sender, state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when not authenticated")
-    {:reply, {:error, :not_authenticated}, state}
   end
 
 
@@ -333,7 +382,7 @@ defmodule DBux.Connection do
         if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Began message transmission")
 
         if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Sending Hello")
-        case send_hello(state) do
+        case send_message(DBux.Message.build_method_call(0, "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus"), state) do
           {:ok, serial} ->
             {:noreply, %{state | state: :authenticated, hello_serial: serial}}
 
@@ -475,16 +524,5 @@ defmodule DBux.Connection do
       {:error, reason} ->
         {:error, reason}
     end
-  end
-
-
-  defp send_method_call(path, interface, member, body, destination \\ nil, state) do
-    # Serial will be added later
-    send_message(DBux.Message.build_method_call(0, path, interface, member, body, destination), state)
-  end
-
-
-  defp send_hello(state) do
-    send_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus", state)
   end
 end
