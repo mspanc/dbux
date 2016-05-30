@@ -254,7 +254,7 @@ defmodule DBux.Connection do
 
     {:ok, address, auth_mechanisms, mod_state} = mod.init(mod_options)
     {:ok, {transport_mod, transport_opts}} = DBux.Transport.get_module_for_address(address)
-    {:ok, {auth_mod, auth_opts}} = DBux.Transport.get_module_for_method(hd(auth_mechanisms)) # FIXME support more mechanisms
+    {:ok, {auth_mod, auth_opts}} = DBux.Auth.get_module_for_method(hd(auth_mechanisms)) # FIXME support more mechanisms
 
     {:ok, transport_proc} = transport_mod.start_link(self(), transport_opts)
     {:ok, auth_proc}      = auth_mod.start_link(self(), auth_opts)
