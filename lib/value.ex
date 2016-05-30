@@ -6,8 +6,7 @@ defmodule DBux.Value do
   @type t              :: %DBux.Value{type: DBux.Type.simple_type, subtype: DBux.Type.simple_type, value: any}
   @type list_of_values :: [] | [%DBux.Value{}]
 
-  @debug Mix.env != :prod
-
+  @debug !is_nil(System.get_env("DBUX_DEBUG"))
 
   @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
   def marshall(%DBux.Value{type: :byte, value: value}, _) when is_binary(value) do

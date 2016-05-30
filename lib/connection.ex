@@ -5,6 +5,7 @@ defmodule DBux.Connection do
   @connect_timeout 5000
   @reconnect_timeout 5000
 
+  @debug !is_nil(System.get_env("DBUX_DEBUG"))
 
   @doc """
   Called when Connection process is first started. `start_link/5` will block
@@ -141,7 +142,7 @@ defmodule DBux.Connection do
   """
   @spec start_link(module, module, map, module, map) :: GenServer.on_start
   def start_link(mod, transport_mod, transport_opts, auth_mod, auth_opts) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Start link: transport = #{transport_mod}, transport_opts = #{inspect(transport_opts)}, auth = #{auth_mod}, auth_opts = #{inspect(auth_opts)}")
 
     initial_state = %{
       mod:                 mod,
@@ -186,7 +187,7 @@ defmodule DBux.Connection do
 
   @doc false
   def init(%{mod: mod, transport_mod: transport_mod, transport_opts: transport_opts, auth_mod: auth_mod, auth_opts: auth_opts} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Init")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Init")
 
     {:ok, transport_proc} = transport_mod.start_link(self(), transport_opts)
     {:ok, auth_proc}      = auth_mod.start_link(self(), auth_opts)
@@ -204,13 +205,13 @@ defmodule DBux.Connection do
 
   @doc false
   def connect(_, %{transport_mod: transport_mod, transport_proc: transport_proc, auth_mod: auth_mod, auth_proc: auth_proc} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Connecting")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Connecting")
     case transport_mod.do_connect(transport_proc) do
       :ok ->
-        Logger.debug("[DBux.Connection #{inspect(self())}] Authenticating")
+        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Authenticating")
         case auth_mod.do_handshake(auth_proc, transport_mod, transport_proc) do
           :ok ->
-            Logger.debug("[DBux.Connection #{inspect(self())}] Sent authentication request")
+            if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Sent authentication request")
             {:ok, %{state | state: :authenticating}}
 
           {:error, _} ->
@@ -219,7 +220,7 @@ defmodule DBux.Connection do
         end
 
       {:error, _} ->
-        Logger.debug("[DBux.Connection #{inspect(self())}] Failed to connect")
+        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Failed to connect")
         {:backoff, @reconnect_timeout, %{state | state: :init}}
     end
   end
@@ -227,7 +228,7 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_call({:dbux_method_call, path, interface, member, body, destination}, _sender, %{state: :authenticated} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when authenticated")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when authenticated")
     case send_method_call(path, interface, member, body, destination, state) do
       {:ok, serial} ->
         {:reply, {:ok, serial}, state}
@@ -241,7 +242,7 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_call({:dbux_request_name, name}, _sender, %{state: :ready} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: request name when ready")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: request name when ready")
     case send_request_name(name, state) do
       {:ok, serial} ->
         {:reply, {:ok, serial}, state}
@@ -255,21 +256,21 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_call(_message, _sender, state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when not authenticated")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when not authenticated")
     {:reply, {:error, :not_authenticated}, state}
   end
 
 
   @doc false
   def handle_info(:dbux_authentication_succeeded, %{state: :authenticating, transport_mod: transport_mod, transport_proc: transport_proc} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication succeeded")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication succeeded")
 
-    Logger.debug("[DBux.Connection #{inspect(self())}] Beginning message transmission")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Beginning message transmission")
     case transport_mod.do_begin(transport_proc) do
       :ok ->
-        Logger.debug("[DBux.Connection #{inspect(self())}] Began message transmission")
+        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Began message transmission")
 
-        Logger.debug("[DBux.Connection #{inspect(self())}] Sending Hello")
+        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Sending Hello")
         case send_hello(state) do
           {:ok, serial} ->
             {:noreply, %{state | state: :authenticated, hello_serial: serial}}
@@ -288,36 +289,36 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_info(:dbux_authentication_failed, %{state: :authenticating} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication failed")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication failed")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info(:dbux_authentication_error, %{state: :authenticating} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication error")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication error")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info(:dbux_transport_down, state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Transport down")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Transport down")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info({:dbux_transport_receive, bitstream}, %{mod: mod, mod_state: mod_state, state: :authenticated, hello_serial: hello_serial, buffer: buffer, unwrap_values: unwrap_values} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when authenticated")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when authenticated")
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
-        Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message #{inspect(message)}")
+        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message #{inspect(message)}")
         cond do
           message.reply_serial == hello_serial ->
             unique_name = hd(message.body)
-            Logger.debug("[DBux.Connection #{inspect(self())}] Got unique name #{unique_name}")
+            if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Got unique name #{unique_name}")
 
             case mod.handle_up(mod_state) do
               {:noreply, new_mod_state} ->
@@ -341,12 +342,12 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_info({:dbux_transport_receive, bitstream}, %{mod: mod, mod_state: mod_state, state: :ready, buffer: buffer, unwrap_values: unwrap_values} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when ready")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when ready")
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
-        Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message = #{inspect(message)}")
-        
+        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message = #{inspect(message)}")
+
         callback_return = case message.message_type do
           :method_call ->
             mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state)
@@ -378,7 +379,7 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_info(info, %{mod: mod, mod_state: mod_state} = state) do
-    Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Generic, info = #{inspect(info)}")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Generic, info = #{inspect(info)}")
     case mod.handle_info(info, mod_state) do
       {:noreply, new_mod_state} ->
         {:noreply, %{state | mod_state: new_mod_state}}
@@ -402,7 +403,7 @@ defmodule DBux.Connection do
     serial = DBux.Serial.retreive(serial_proc)
     message_with_serial = Map.put(message, :serial, serial)
 
-    Logger.debug("[DBux.Connection #{inspect(self())}] Sending message: #{inspect(message_with_serial)}")
+    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Sending message: #{inspect(message_with_serial)}")
     {:ok, message_bitstring} = message_with_serial |> DBux.Message.marshall
 
     case transport_mod.do_send(transport_proc, message_bitstring) do
