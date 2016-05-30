@@ -1,7 +1,7 @@
 defmodule DBux.Message do
   defstruct \
-    type:         nil,
-    flags:        nil,
+    message_type: nil,
+    flags:        0,
     path:         nil,
     destination:  nil,
     interface:    nil,
@@ -15,7 +15,7 @@ defmodule DBux.Message do
     unix_fds:     nil
 
   @type t :: %DBux.Message{
-    type:         :method_call | :method_return | :error | :signal,
+    message_type: :method_call | :method_return | :error | :signal,
     serial:       number,
     flags:        number,
     path:         String.t,
@@ -45,7 +45,7 @@ defmodule DBux.Message do
   """
   @spec build_method_call(number, String.t, String.t, [] | [%DBux.Value{}], String.t | nil) :: %DBux.Message{}
   def build_method_call(serial, path, interface, member, body \\ [], destination \\ nil) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
-    %DBux.Message{serial: serial, type: :method_call, path: path, interface: interface, member: member, body: body, destination: destination}
+    %DBux.Message{serial: serial, message_type: :method_call, path: path, interface: interface, member: member, body: body, destination: destination}
   end
 
 
@@ -54,7 +54,7 @@ defmodule DBux.Message do
   """
   @spec build_signal(number, String.t, String.t, String.t,  [] | [%DBux.Value{}]) :: %DBux.Message{}
   def build_signal(serial, path, interface, member, body \\ []) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) do
-    %DBux.Message{serial: serial, type: :signal, path: path, interface: interface, member: member, body: body}
+    %DBux.Message{serial: serial, message_type: :signal, path: path, interface: interface, member: member, body: body}
   end
 
 
@@ -63,7 +63,7 @@ defmodule DBux.Message do
   """
   @spec build_method_return(number, number, [] | [%DBux.Value{}]) :: %DBux.Message{}
   def build_method_return(serial, reply_serial, body \\ []) when is_number(serial) and is_number(reply_serial) and is_list(body) do
-    %DBux.Message{serial: serial, type: :method_return, reply_serial: reply_serial, body: body}
+    %DBux.Message{serial: serial, message_type: :method_return, reply_serial: reply_serial, body: body}
   end
 
 
@@ -72,7 +72,7 @@ defmodule DBux.Message do
   """
   @spec build_error(number, number, String.t, [] | [%DBux.Value{}]) :: %DBux.Message{}
   def build_error(serial, reply_serial, error_name, body \\ []) when is_number(serial) and is_number(reply_serial) and is_binary(error_name) and is_list(body) do
-    %DBux.Message{serial: serial, type: :error, reply_serial: reply_serial, error_name: error_name, body: body}
+    %DBux.Message{serial: serial, message_type: :error, reply_serial: reply_serial, error_name: error_name, body: body}
   end
 
 
@@ -97,7 +97,7 @@ defmodule DBux.Message do
     # byte
     # Message type. Unknown types must be ignored. Currently-defined types
     # are described below.
-    header_message_type_bitstring = case message.type do
+    header_message_type_bitstring = case message.message_type do
       :method_call ->
         << 1 >>
       :method_return ->
@@ -142,17 +142,28 @@ defmodule DBux.Message do
     # An array of zero or more header fields where the byte is the field code,
     # and the variant is the field value. The message type determines which
     # fields are required.
-    header_fields_value = case message.type do
+    header_fields_value = []
+
+    header_fields_value = case body_signature do
+      "" ->
+        header_fields_value
+
+      _ ->
+        header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 8}, %DBux.Value{type: :variant, subtype: :signature, value: body_signature}]}]
+    end
+
+
+    header_fields_value = case message.message_type do
       :method_call ->
         case message.interface do
           nil ->
-            [
+            header_fields_value ++ [
               %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :variant, subtype: :object_path, value: message.path}]},
               %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :variant, subtype: :string, value: message.member}]}
             ]
 
           _ ->
-            [
+            header_fields_value ++ [
               %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :variant, subtype: :object_path, value: message.path}]},
               %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :variant, subtype: :string, value: message.member}]},
               %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 2}, %DBux.Value{type: :variant, subtype: :string, value: message.interface}]}
@@ -160,19 +171,19 @@ defmodule DBux.Message do
         end
 
       :method_return ->
-        [
+        header_fields_value ++ [
           %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 5}, %DBux.Value{type: :variant, subtype: :uint32, value: message.reply_serial}]}
         ]
 
       :signal ->
-        [
+        header_fields_value ++ [
           %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 1}, %DBux.Value{type: :variant, subtype: :object_path, value: message.path}]},
           %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 2}, %DBux.Value{type: :variant, subtype: :string, value: message.interface}]},
           %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 3}, %DBux.Value{type: :variant, subtype: :string, value: message.member}]}
         ]
 
       :error ->
-        [
+        header_fields_value ++ [
           %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 4}, %DBux.Value{type: :variant, subtype: :string, value: message.error_name}]},
           %DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 5}, %DBux.Value{type: :variant, subtype: :uint32, value: message.reply_serial}]}
         ]
@@ -186,12 +197,12 @@ defmodule DBux.Message do
         header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 6}, %DBux.Value{type: :variant, subtype: :string, value: message.destination}]}]
     end
 
-    header_fields_value = case body_signature do
-      "" ->
+    header_fields_value = case message.sender do
+      nil ->
         header_fields_value
 
       _ ->
-        header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 8}, %DBux.Value{type: :variant, subtype: :signature, value: message.signature}]}]
+        header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 7}, %DBux.Value{type: :variant, subtype: :string, value: message.sender}]}]
     end
 
     header_fields_value = case message.unix_fds do
@@ -230,7 +241,7 @@ defmodule DBux.Message do
   @spec unmarshall(Bitstring, boolean) :: {:ok, %DBux.Message{}, Bitstring} | {:error, any}
   def unmarshall(<< >>, _unwrap_values), do: {:error, :bitstring_too_short}
   def unmarshall(bitstring, unwrap_values) when is_binary(bitstring) do
-    << endianness_bitstring, rest :: binary >> = bitstring
+    << endianness_bitstring, _rest :: binary >> = bitstring
 
     endianness = case endianness_bitstring do
       108 -> :little_endian
@@ -239,37 +250,42 @@ defmodule DBux.Message do
 
     case DBux.Protocol.unmarshall_bitstring(bitstring, endianness, @message_header_signature, true) do
       {:ok, {[_endianness_raw, message_type_raw, flags, @protocol_version, body_length, serial, header_fields], rest}} ->
-        message_type = case message_type_raw do
-          1 -> :method_call
-          2 -> :method_return
-          3 -> :error
-          4 -> :signal
-        end
+        if byte_size(rest) < body_length do
+          {:error, :bitstring_too_short}
 
-        message = %DBux.Message{type: message_type, flags: flags, serial: serial}
-
-        message = Enum.reduce(header_fields, message, fn({header_field_type, header_field_value}, acc) ->
-          message_key = case header_field_type do
-            1 -> :path
-            2 -> :interface
-            3 -> :member
-            4 -> :error_name
-            5 -> :reply_serial
-            6 -> :destination
-            7 -> :sender
-            8 -> :signature
-            9 -> :unix_fds
+        else
+          message_type = case message_type_raw do
+            1 -> :method_call
+            2 -> :method_return
+            3 -> :error
+            4 -> :signal
           end
 
-          Map.put(acc, message_key, header_field_value)
-        end)
+          message = %DBux.Message{message_type: message_type, flags: flags, serial: serial}
 
-        case DBux.Protocol.unmarshall_bitstring(rest, endianness, message.signature, unwrap_values) do
-          {:ok, {body, rest}} ->
-            {:ok, {message |> Map.put(:body, body), rest}}
+          message = Enum.reduce(header_fields, message, fn({header_field_type, header_field_value}, acc) ->
+            message_key = case header_field_type do
+              1 -> :path
+              2 -> :interface
+              3 -> :member
+              4 -> :error_name
+              5 -> :reply_serial
+              6 -> :destination
+              7 -> :sender
+              8 -> :signature
+              9 -> :unix_fds
+            end
 
-          {:error, reason} ->
-            {:error, reason}
+            Map.put(acc, message_key, header_field_value)
+          end)
+
+          case DBux.Protocol.unmarshall_bitstring(rest, endianness, message.signature, unwrap_values) do
+            {:ok, {body, rest}} ->
+              {:ok, {message |> Map.put(:body, body), rest}}
+
+            {:error, reason} ->
+              {:error, reason}
+          end
         end
 
       {:error, reason} ->

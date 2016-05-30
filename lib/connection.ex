@@ -292,6 +292,7 @@ defmodule DBux.Connection do
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
+        Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message #{inspect(message)}")
         cond do
           message.reply_serial == hello_serial ->
             unique_name = hd(message.body)
@@ -304,7 +305,7 @@ defmodule DBux.Connection do
               _ ->
                 case send_request_name(requested_name, state) do
                   {:ok, serial} ->
-                    Logger.debug("[DBux.Connection #{inspect(self())}] Sent name request for#{requested_name}")
+                    Logger.debug("[DBux.Connection #{inspect(self())}] Sent name request for #{requested_name}")
                     {:noreply, %{state | state: :ready, unique_name: unique_name, buffer: rest, request_name_serial: serial}}
 
                   {:error, reason} ->
@@ -334,6 +335,7 @@ defmodule DBux.Connection do
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
+        Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message #{inspect(message)}")
         cond do
           message.reply_serial == request_name_serial ->
             case message.message_type do
@@ -363,7 +365,10 @@ defmodule DBux.Connection do
 
   defp send_message(%DBux.Message{} = message, %{transport_mod: transport_mod, transport_proc: transport_proc, serial_proc: serial_proc}) do
     serial = DBux.Serial.retreive(serial_proc)
-    {:ok, message_bitstring} = %{message | serial: serial} |> DBux.Message.marshall
+    message_with_serial = Map.put(message, :serial, serial)
+
+    Logger.debug("[DBux.Connection #{inspect(self())}] Sending message: #{inspect(message_with_serial)}")
+    {:ok, message_bitstring} = message_with_serial |> DBux.Message.marshall
 
     case transport_mod.do_send(transport_proc, message_bitstring) do
       :ok ->

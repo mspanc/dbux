@@ -138,7 +138,7 @@ defmodule DBux.Transport.TCP do
     Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Handle call: Begin while connected")
     case :gen_tcp.send(sock, "BEGIN\r\n") do
       :ok ->
-        :inet.setopts(sock, [packet: :raw, active: :once])
+        :inet.setopts(sock, [packet: :raw, active: true])
         {:reply, :ok, %{state | state: :ready}}
 
       {:error, reason} ->
