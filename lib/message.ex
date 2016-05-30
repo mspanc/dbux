@@ -254,6 +254,8 @@ defmodule DBux.Message do
           {:error, :bitstring_too_short}
 
         else
+          << body :: binary-size(body_length), rest :: binary >> = rest
+
           message_type = case message_type_raw do
             1 -> :method_call
             2 -> :method_return
@@ -279,8 +281,8 @@ defmodule DBux.Message do
             Map.put(acc, message_key, header_field_value)
           end)
 
-          case DBux.Protocol.unmarshall_bitstring(rest, endianness, message.signature, unwrap_values) do
-            {:ok, {body, rest}} ->
+          case DBux.Protocol.unmarshall_bitstring(body, endianness, message.signature, unwrap_values) do
+            {:ok, {body, _}} -> # Drop the remaining padding
               {:ok, {message |> Map.put(:body, body), rest}}
 
             {:error, reason} ->
