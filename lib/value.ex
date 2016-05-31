@@ -151,9 +151,9 @@ defmodule DBux.Value do
       :big_endian ->
         {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
         length_bitstring <> << value :: binary-unit(8)-big, 0 >>
-    end
+    end |> align(:string)
 
-    {:ok, {bitstring, 0}}
+    # {:ok, {bitstring, 0}}
   end
 
 
