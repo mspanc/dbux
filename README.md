@@ -78,7 +78,7 @@ defmodule MyApp.Bus do
 
   def handle_down(state) do
     Logger.warn("Down")
-    {:noreply, state}
+    {:backoff, 1000, state}
   end
 
   def handle_method_return(_serial, _reply_serial, _body, @request_name_message_id, state) do

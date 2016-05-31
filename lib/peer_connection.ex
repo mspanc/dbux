@@ -42,7 +42,7 @@ defmodule DBux.PeerConnection do
 
         def handle_down(state) do
           Logger.warn("Down")
-          {:noreply, state}
+          {:backoff, 1000, state}
         end
 
         def handle_method_return(_serial, _reply_serial, _body, @request_name_message_id, state) do
@@ -120,16 +120,21 @@ defmodule DBux.PeerConnection do
   @doc """
   Called when connection is lost.
 
-  Returning `{:noreply, state}` will cause to update state with `state`.
+  Returning `{:connect, state}` will cause to try to reconnect immediately.
 
-  Returning `{:send, list_of_messages, state}` will cause to update state with
-  `state` and send messages passed as the second element of the tuple. The list
-  can just contain `DBux.Message` structs or `{identifier, %DBux.Message{}}`
-  tuples, where `identifier` is an arbitrary identifier that will allow later
-  to match response with the message.
+  Returning `{:backoff, timeout, state}` will cause to try to reconnect after
+  `timeout` milliseconds.
+
+  Returning `{:noconnect, state}` will cause to update state with `state`
+  and do nothing.
+
+  Returning `{:stop, info, state}` will cause to terminate the process.
   """
   @callback handle_down(any) ::
-    {:noreply, any}
+    {:connect, any} |
+    {:backoff, timeout, any} |
+    {:noconnect, any} |
+    {:stop, any, any}
 
 
   @doc """
@@ -215,7 +220,7 @@ defmodule DBux.PeerConnection do
 
       @doc false
       def handle_down(state) do
-        {:noreply, state}
+        {:backoff, 1000, state}
       end
 
 
@@ -488,8 +493,17 @@ defmodule DBux.PeerConnection do
     case transport_mod.do_disconnect(transport_proc) do
       :ok ->
         case mod.handle_down(mod_state) do
-          {:noreply, new_mod_state} ->
-            {:backoff, 1000, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+          {:connect, new_mod_state} ->
+            {:connect, :callback, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+
+          {:backoff, timeout, new_mod_state} ->
+            {:backoff, timeout, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+
+          {:noconnect, new_mod_state} ->
+            {:noconnect, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+
+          {:stop, info, new_mod_state} ->
+            {:stop, info, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
         end
 
       {:error, _} ->
