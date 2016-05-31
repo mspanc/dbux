@@ -52,8 +52,6 @@ defmodule MyApp.Bus do
   require Logger
   use DBux.PeerConnection
 
-  @dbus_name "org.example.dbux"
-
   @request_name_message_id "request_name"
   @add_match_message_id    "add_match"
 
@@ -74,7 +72,7 @@ defmodule MyApp.Bus do
     {:send, [
       DBux.Message.build_signal("/", "org.example.dbux.MyApp.Bus", "Connected", []),
       {@add_match_message_id,    DBux.MessageTemplate.add_match(:signal, nil, "org.example.dbux.OtherApp")},
-      {@request_name_message_id, DBux.MessageTemplate.request_name(@dbus_name, 0x4)}
+      {@request_name_message_id, DBux.MessageTemplate.request_name("org.example.dbux.MyApp", 0x4)}
     ], state}
   end
 
