@@ -638,60 +638,67 @@ defmodule DBux.PeerConnection do
       {:ok, {message, rest}} ->
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsed received message, message = #{inspect(message)}")
 
-        {callback_return, new_message_queue} = case message.message_type do
+        return = case message.message_type do
           :method_call ->
-            {mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
+            {:ok, {mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}, state}
 
           :method_return ->
             cond do
               message.reply_serial == hello_serial ->
                 case message.message_type do
                   :method_return ->
-                    {mod.handle_up(mod_state), message_queue}
+                    {:hellocaptured, {mod.handle_up(mod_state), message_queue}, %{state | hello_serial: nil}}
 
                   _ ->
-                    Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to finish Hello handshake")
-                    {:disconnect, :error, state}
+                    {:error, :hellofailed}
                 end
 
               true ->
                 case message_queue |> Map.pop(message.reply_serial) do
                   {{id, _}, new_message_queue} ->
-                    {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}
+                    {:ok, {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}, state}
 
                   {nil, new_message_queue} ->
-                    {mod.handle_method_return(message.serial, message.reply_serial, message.body, nil, mod_state), new_message_queue}
+                    {:ok, {mod.handle_method_return(message.serial, message.reply_serial, message.body, nil, mod_state), new_message_queue}, state}
                 end
             end
 
           :error ->
             case message_queue |> Map.pop(message.reply_serial) do
               {{id, _}, new_message_queue} ->
-                {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}
+                {:ok, {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}, state}
 
               {nil, new_message_queue} ->
-                {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, nil, mod_state), new_message_queue}
+                {:ok, {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, nil, mod_state), new_message_queue}, state}
             end
 
           :signal ->
-            {mod.handle_signal(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
+            {:ok, {mod.handle_signal(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}, state}
         end
 
-        case callback_return do
-          {:noreply, new_mod_state} ->
-            parse_received_data(rest, %{state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue})
 
-          {:send, messages, new_mod_state} ->
-            new_state = %{state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue}
+        case return do
+          {:ok, {callback_return, new_message_queue}, new_state} ->
+            case callback_return do
+              {:noreply, new_mod_state} ->
+                parse_received_data(rest, %{new_state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue})
 
-            case do_send_message_queue(messages, new_state) do
-              {:ok, new_state} ->
-                parse_received_data(rest, new_state)
+              {:send, messages, new_mod_state} ->
+                new_state = %{new_state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue}
 
-              {:error, reason} ->
-                Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send message queue: reason = #{inspect(reason)}")
-                {:disconnect, :error, state}
+                case do_send_message_queue(messages, new_state) do
+                  {:ok, new_state} ->
+                    parse_received_data(rest, new_state)
+
+                  {:error, reason} ->
+                    Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send message queue: reason = #{inspect(reason)}")
+                    {:disconnect, :error, new_state}
+                end
             end
+
+          {:error, reason} ->
+            Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse received data: #{inspect(reason)}")
+            {:disconnect, :error, new_state}
         end
 
       {:error, :bitstring_too_short} ->
