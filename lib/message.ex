@@ -131,7 +131,6 @@ defmodule DBux.Message do
     #
 
     {:ok, {body_bitstring, body_signature}} = DBux.Protocol.marshall_bitstring(message.body, endianness)
-    {:ok, {body_bitstring, _}} = body_bitstring |> DBux.Value.align(4)
     {:ok, {body_length, _}} = %DBux.Value{type: :uint32, value: byte_size(body_bitstring)} |> DBux.Value.marshall(endianness)
 
 
@@ -226,6 +225,9 @@ defmodule DBux.Message do
       header_serial_bitstring <>
       header_fields_bitstring
       |> DBux.Value.align(8)
+
+    IO.puts body_bitstring |> Base.encode16
+    IO.puts byte_size(body_bitstring)
 
     {:ok, message_bitstring <> body_bitstring}
   end
