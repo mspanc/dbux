@@ -43,6 +43,7 @@ defmodule DBux.MessageTemplate do
     filter = if !is_nil(arg0namespace),  do: filter ++ ["arg0namespace='#{arg0namespace}'"],   else: filter
     filter = if !is_nil(eavesdrop),      do: filter ++ ["eavesdrop='#{eavesdrop}'"],           else: filter
 
+    # TODO add string escaping
     # TODO add support for string_matches
     # TODO add support for path_matches
 

@@ -736,7 +736,13 @@ defmodule DBux.PeerConnection do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Sending message queue: id = #{inspect(id)}, message = #{inspect(message)}, rest = #{inspect(rest)}, state = #{inspect(state)}")
     case do_send_message(message, state) do
       {:ok, serial} ->
-        do_send_message_queue(rest, %{state | message_queue: message_queue |> Map.put(serial, {id, System.system_time})})
+        case message.message_type do
+          :method_call ->
+            do_send_message_queue(rest, state)
+
+          _ ->
+            do_send_message_queue(rest, %{state | message_queue: message_queue |> Map.put(serial, {id, System.system_time})})
+        end
 
       {:error, reason} ->
         {:error, reason}
@@ -748,7 +754,13 @@ defmodule DBux.PeerConnection do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Sending message queue: message = #{inspect(message)}, rest = #{inspect(rest)}, state = #{inspect(state)}")
     case do_send_message(message, state) do
       {:ok, serial} ->
-        do_send_message_queue(rest, %{state | message_queue: message_queue |> Map.put(serial, {nil, System.system_time})})
+        case message.message_type do
+          :method_call ->
+            do_send_message_queue(rest, state)
+
+          _ ->
+            do_send_message_queue(rest, %{state | message_queue: message_queue |> Map.put(serial, {nil, System.system_time})})
+        end
 
       {:error, reason} ->
         {:error, reason}
