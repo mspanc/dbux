@@ -157,7 +157,7 @@ defmodule DBux.PeerConnection do
   tuples, where `identifier` is an arbitrary identifier that will allow later
   to match response with the message.
   """
-  @callback handle_method_call(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values any) ::
+  @callback handle_method_call(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
     {:noreply, any} |
     {:send, message_queue}
 
