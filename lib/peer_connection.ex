@@ -163,6 +163,22 @@ defmodule DBux.PeerConnection do
   @callback handle_signal(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
     {:noreply, any}
 
+  @doc """
+  Called when we receive a call.
+
+  Returning `{:noreply, state}` will cause to update state with `state`.
+
+  Returning `{:reply, value, state}` will cause to update state with `state` and
+  return `value` to the caller .
+
+  Returning `{:stop, reason, state}` will cause to terminate the process.
+  """
+  @callback handle_call(any, GenServer.server, any) ::
+    {:reply, any, any} |
+    {:noreply, any} |
+    {:stop, any, any}
+
+
 
   defmacro __using__(_) do
     quote location: :keep do
@@ -200,8 +216,15 @@ defmodule DBux.PeerConnection do
         {:noreply, state}
       end
 
-      defdelegate handle_call(_req, _sender, _state), to: Connection
-
+      @doc false
+      def handle_call(msg, _from, state) do
+        # We do this to trick dialyzer to not complain about non-local returns.
+        reason = {:bad_call, msg}
+        case :erlang.phash2(1, 1) do
+          0 -> exit(reason)
+          1 -> {:stop, reason, state}
+        end
+      end
 
       defoverridable [
         handle_up: 1,
@@ -209,7 +232,8 @@ defmodule DBux.PeerConnection do
         handle_method_call: 6,
         handle_method_return: 4,
         handle_error: 5,
-        handle_signal: 6]
+        handle_signal: 6,
+        handle_call: 3]
     end
   end
 
@@ -377,6 +401,21 @@ defmodule DBux.PeerConnection do
       {:error, reason} ->
         Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send method call: #{inspect(reason)}")
         {:reply, {:error, reason}, state}
+    end
+  end
+
+
+  @doc false
+  def handle_call(msg, sender, %{mod: mod, mod_state: mod_state} = state) do
+    case mod.handle_call(msg, sender, mod_state) do
+      {:reply, reply_value, new_mod_state} ->
+        {:reply, reply_value, %{state | mod_state: new_mod_state}}
+
+      {:stop, reason, new_mod_state} ->
+        {:stop, reason, %{state | mod_state: new_mod_state}}
+
+      {:noreply, new_mod_state} ->
+        {:noreply, %{state | mod_state: new_mod_state}}
     end
   end
 
