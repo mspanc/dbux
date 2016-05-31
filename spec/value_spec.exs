@@ -797,19 +797,19 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator" do
               {:ok, {bitstring, _}} = result
-              expect(byte_size(bitstring)).to eq 16
+              expect(byte_size(bitstring)).to eq 15
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
               {:ok, {bitstring, _}} = result
-              expect(bitstring).to eq(<<10, 0, 0, 0, 97, 98, 99, 100, 197, 130, 195, 179, 197, 188, 0, 0>>)
+              expect(bitstring).to eq(<<10, 0, 0, 0, 97, 98, 99, 100, 197, 130, 195, 179, 197, 188, 0>>)
             end
 
-            it "should return padding set to missing bytes added to match alignment of 4" do
+            it "should return padding set to 0" do
               {:ok, {_, padding}} = result
-              expect(padding).to eq 1
+              expect(padding).to eq 0
             end
           end
 
@@ -825,19 +825,19 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator" do
               {:ok, {bitstring, _}} = result
-              expect(byte_size(bitstring)).to eq 16
+              expect(byte_size(bitstring)).to eq 15
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
               {:ok, {bitstring, _}} = result
-              expect(bitstring).to eq(<<0, 0, 0, 10, 97, 98, 99, 100, 197, 130, 195, 179, 197, 188, 0, 0>>)
+              expect(bitstring).to eq(<<0, 0, 0, 10, 97, 98, 99, 100, 197, 130, 195, 179, 197, 188, 0>>)
             end
 
-            it "should return padding set to missing bytes added to match alignment of 4" do
+            it "should return padding set to 0" do
               {:ok, {_, padding}} = result
-              expect(padding).to eq 1
+              expect(padding).to eq 0
             end
           end
         end
@@ -989,19 +989,19 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator" do
               {:ok, {bitstring, _}} = result
-              expect(byte_size(bitstring)).to eq 32
+              expect(byte_size(bitstring)).to eq 30
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
               {:ok, {bitstring, _}} = result
-              expect(bitstring).to eq(<<25, 0, 0, 0, 47, 99, 111, 109, 47, 101, 120, 97, 109, 112, 108, 101, 47, 77, 117, 115, 105, 99, 80, 108, 97, 121, 101, 114, 49, 0, 0, 0>>)
+              expect(bitstring).to eq(<<25, 0, 0, 0, 47, 99, 111, 109, 47, 101, 120, 97, 109, 112, 108, 101, 47, 77, 117, 115, 105, 99, 80, 108, 97, 121, 101, 114, 49, 0>>)
             end
 
-            it "should return padding set to missing bytes added to match alignment of 4" do
+            it "should return padding set to 0" do
               {:ok, {_, padding}} = result
-              expect(padding).to eq 2
+              expect(padding).to eq 0
             end
           end
 
@@ -1017,19 +1017,19 @@ defmodule DBux.ValueSpec do
               expect(padding_size).to be_number
             end
 
-            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
+            it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator" do
               {:ok, {bitstring, _}} = result
-              expect(byte_size(bitstring)).to eq 32
+              expect(byte_size(bitstring)).to eq 30
             end
 
-            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
+            it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
               {:ok, {bitstring, _}} = result
-              expect(bitstring).to eq(<<0, 0, 0, 25, 47, 99, 111, 109, 47, 101, 120, 97, 109, 112, 108, 101, 47, 77, 117, 115, 105, 99, 80, 108, 97, 121, 101, 114, 49, 0, 0, 0>>)
+              expect(bitstring).to eq(<<0, 0, 0, 25, 47, 99, 111, 109, 47, 101, 120, 97, 109, 112, 108, 101, 47, 77, 117, 115, 105, 99, 80, 108, 97, 121, 101, 114, 49, 0>>)
             end
 
-            it "should return padding set to missing bytes added to match alignment of 4" do
+            it "should return padding set to 0" do
               {:ok, {_, padding}} = result
-              expect(padding).to eq 2
+              expect(padding).to eq 0
             end
           end
         end
@@ -1165,16 +1165,18 @@ defmodule DBux.ValueSpec do
     end
 
 
-    xcontext "if passed 'array' value" do
+    context "if passed 'array' value" do
       let :type, do: :array
 
       pending "and subtype is a simple type"
 
       context "and subtype is a struct" do
-        let :subtype, do: :struct
+        let :value, do: %DBux.Value{type: type, subtype: :struct, value: subvalues}
 
         context "and its elements need padding" do
-          let :value, do: %DBux.Value{type: :struct, subtype: [:string], value: [%DBux.Value{type: :string, value: "abcdefgh"}]}
+          let :subvalues, do: [
+            %DBux.Value{type: :struct, subtype: [:string], value: [%DBux.Value{type: :string, value: "abcdefgh"}]},
+            %DBux.Value{type: :struct, subtype: [:string], value: [%DBux.Value{type: :string, value: "12345678"}]}]
 
           context "and endianness is little-endian" do
             let :endianness, do: :little_endian
@@ -1183,14 +1185,14 @@ defmodule DBux.ValueSpec do
               expect(described_module.marshall(value, endianness)).to be_ok_result
             end
 
-            it "should return an a valid bitstring aligned to the array element type alignment size" do
+            it "should return an a valid bitstring aligned to the array element type alignment size, with length header that does not include padding of the last element" do
               {:ok, {bitstring, _padding}} = described_module.marshall(value, endianness)
-              expect(bitstring).to eq <<8, 0, 0, 0, 97, 98, 99, 100, 101, 102, 103, 104, 0, 0, 0, 0, 0, 0, 0, 0>>
+              expect(bitstring).to eq <<29, 0, 0, 0, 8, 0, 0, 0, 97, 98, 99, 100, 101, 102, 103, 104, 0, 0, 0, 0, 8, 0, 0, 0, 49, 50, 51, 52, 53, 54, 55, 56, 0, 0, 0, 0>>
             end
 
             it "should return a last element padding" do
               {:ok, {_bitstring, padding}} = described_module.marshall(value, endianness)
-              expect(padding).to eq 7
+              expect(padding).to eq 3
             end
           end
 

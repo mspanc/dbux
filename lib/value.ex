@@ -3,10 +3,12 @@ defmodule DBux.Value do
 
   defstruct type: nil, value: nil, subtype: nil
 
-  @type t              :: %DBux.Value{type: DBux.Type.simple_type, subtype: DBux.Type.simple_type, value: any}
+  @type subtype        :: DBux.Type.simple_type | [DBux.Type.simple_type | subtype]
+  @type t              :: %DBux.Value{type: DBux.Type.simple_type, subtype: subtype, value: any}
   @type list_of_values :: [] | [%DBux.Value{}]
 
   @debug !is_nil(System.get_env("DBUX_DEBUG"))
+
 
   @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
   def marshall(%DBux.Value{type: :byte, value: value}, _) when is_binary(value) do
@@ -142,14 +144,16 @@ defmodule DBux.Value do
     if String.contains?(value, << 0 >>),     do: throw {:badarg, :value, :invalid}
     unless String.valid?(value),             do: throw {:badarg, :value, :invalid}
 
-    case endianness do
+    bitstring = case endianness do
       :little_endian ->
         {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
         length_bitstring <> << value :: binary-unit(8)-little, 0 >>
       :big_endian ->
         {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
         length_bitstring <> << value :: binary-unit(8)-big, 0 >>
-    end |> align(:string)
+    end
+
+    {:ok, {bitstring, 0}}
   end
 
 
@@ -180,6 +184,7 @@ defmodule DBux.Value do
 
   @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
   def marshall(%DBux.Value{type: :variant, subtype: subtype, value: value}, endianness) do
+    if @debug, do: debug("Marshalling variant: subtype = #{inspect(subtype)}, value = #{inspect(value)}", 0)
     signature_bitstring = case subtype do
       :array ->
         throw :todo # TODO
@@ -195,27 +200,35 @@ defmodule DBux.Value do
 
       _ ->
         {:ok, {bitstring, _}} = %DBux.Value{type: :signature, value: DBux.Type.signature(subtype)} |> marshall(endianness)
+        if @debug, do: debug("Marshalling variant signature: bitstring = #{inspect(bitstring)}", 0)
         bitstring
     end
 
     {:ok, {body_bitstring, body_padding}} = %DBux.Value{type: subtype, value: value} |> marshall(endianness)
+
+    if @debug, do: debug("Marshalling variant body: body_bitstring = #{inspect(body_bitstring)}, body_padding = #{inspect(body_padding)}", 0)
     {:ok, {signature_bitstring <> body_bitstring, body_padding}}
   end
 
 
   @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
   def marshall(%DBux.Value{type: :array, subtype: subtype, value: value}, endianness) when is_list(value) do
+    if @debug, do: debug("Marshalling array: subtype = #{inspect(subtype)}, value = #{inspect(value)}", 0)
+
     {body_bitstring, last_element_padding} = Enum.reduce(value, {<< >>, 0}, fn(element, acc) ->
       if element.type != subtype, do: throw {:badarg, :value, :invalid}
       {acc_bitstring, _} = acc
 
       {:ok, {element_bitstring, element_padding}} = marshall(element, endianness)
+      if @debug, do: debug("Marshalling array step: element = #{inspect(element)}, acc = #{inspect(acc)}, element_bitstring = #{inspect(element_bitstring)}, element_padding = #{inspect(element_padding)}", 0)
 
       {acc_bitstring <> element_bitstring, element_padding}
     end)
 
     {:ok, {length_bitstring, _}} = %DBux.Value{type: :uint32, value: byte_size(body_bitstring) - last_element_padding} |> marshall(endianness)
-    {:ok, {length_bitstring <> body_bitstring, 0}} # FIXME? shouldn't it be aligned by itself?
+
+    if @debug, do: debug("Marshalling array done: length_bitstring = #{inspect(length_bitstring)}, body_bitstring = #{inspect(body_bitstring)}, last_element_padding = #{inspect(last_element_padding)}", 0)
+    {:ok, {length_bitstring <> body_bitstring, last_element_padding}}
   end
 
 
@@ -229,16 +242,22 @@ defmodule DBux.Value do
   def marshall(%DBux.Value{type: :struct, subtype: subtype, value: value}, endianness) when is_list(value) and is_list(subtype) do
     if length(subtype) != length(value), do: throw {:badarg, :value, :signature_and_value_count_mismatch}
 
+    if @debug, do: debug("Marshalling struct: subtype = #{inspect(subtype)}, value = #{inspect(value)}", 0)
+
     {body_bitstring, last_element_padding, _} = Enum.reduce(value, {<< >>, 0, 0}, fn(element, acc) ->
       {acc_bitstring, _, acc_index} = acc
       if Enum.at(subtype, acc_index) != element.type, do: throw {:badarg, :value, :signature_and_value_type_mismatch}
 
       {:ok, {element_bitstring, element_padding}} = marshall(element, endianness)
+      if @debug, do: debug("Marshalling struct step: element = #{inspect(element)}, acc = #{inspect(acc)}, element_bitstring = #{inspect(element_bitstring)}, element_padding = #{inspect(element_padding)}", 0)
+
       {acc_bitstring <> element_bitstring, element_padding, acc_index + 1}
     end)
 
-    {:ok, {struct_bitstring, _}} = body_bitstring |> align(:struct)
-    {:ok, {struct_bitstring, last_element_padding}}
+    {:ok, {body_bitstring, last_element_padding}} = body_bitstring |> align(:struct)
+
+    if @debug, do: debug("Marshalling struct done: body_bitstring = #{inspect(body_bitstring)}, last_element_padding = #{inspect(last_element_padding)}", 0)
+    {:ok, {body_bitstring, last_element_padding}}
   end
 
 
