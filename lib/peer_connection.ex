@@ -56,7 +56,7 @@ defmodule DBux.PeerConnection do
         def handle_error(_serial, reply_serial, error_name, _body, %{request_name_serial: request_name_serial} = state) do
           cond do
             reply_serial == request_name_serial ->
-              Logger.warn("Failed te acquire name: " <> error_name)
+              Logger.warn("Failed to acquire name: " <> error_name)
               {:noreply, %{state | request_name_serial: nil}}
 
             true ->
@@ -191,30 +191,36 @@ defmodule DBux.PeerConnection do
         {:noreply, state}
       end
 
+
       @doc false
       def handle_down(state) do
         {:noreply, state}
       end
+
 
       @doc false
       def handle_method_call(_serial, _path, _member, _interface, _body, state) do
         {:noreply, state}
       end
 
+
       @doc false
       def handle_method_return(_serial, _reply_serial, _body, state) do
         {:noreply, state}
       end
+
 
       @doc false
       def handle_error(_serial, _reply_serial, _error_name, _body, state) do
         {:noreply, state}
       end
 
+
       @doc false
       def handle_signal(_serial, _path, _member, _interface, _body, state) do
         {:noreply, state}
       end
+
 
       @doc false
       def handle_call(msg, _from, state) do
@@ -226,6 +232,36 @@ defmodule DBux.PeerConnection do
         end
       end
 
+
+      @doc false
+      def handle_info(_msg, state) do
+        {:noreply, state}
+      end
+
+
+      @doc false
+      def handle_cast(msg, state) do
+        # We do this to trick dialyzer to not complain about non-local returns.
+        reason = {:bad_cast, msg}
+        case :erlang.phash2(1, 1) do
+          0 -> exit(reason)
+          1 -> {:stop, reason, state}
+        end
+      end
+
+
+      @doc false
+      def terminate(_reason, _state) do
+        :ok
+      end
+
+
+      @doc false
+      def code_change(_old, state, _extra) do
+        {:ok, state}
+      end
+
+
       defoverridable [
         handle_up: 1,
         handle_down: 1,
@@ -233,7 +269,11 @@ defmodule DBux.PeerConnection do
         handle_method_return: 4,
         handle_error: 5,
         handle_signal: 6,
-        handle_call: 3]
+        handle_call: 3,
+        handle_info: 2,
+        handle_cast: 2,
+        terminate: 2,
+        code_change: 3]
     end
   end
 
@@ -325,28 +365,28 @@ defmodule DBux.PeerConnection do
 
 
   @doc """
-  Sends a synchronous call to the `Connection` process and waits for a reply.
-  See `GenServer.call/2` for more information.
+  Sends a synchronous call to the `PeerConnection` process and waits for a reply.
+  See `Connection.call/2` for more information.
   """
-  defdelegate call(conn, req), to: :gen_server
+  defdelegate call(conn, req), to: Connection
 
   @doc """
-  Sends a synchronous request to the `Connection` process and waits for a reply.
-  See `GenServer.call/3` for more information.
+  Sends a synchronous request to the `PeerConnection` process and waits for a reply.
+  See `Connection.call/3` for more information.
   """
-  defdelegate call(conn, req, timeout), to: :gen_server
+  defdelegate call(conn, req, timeout), to: Connection
 
   @doc """
-  Sends a asynchronous request to the `Connection` process.
-  See `GenServer.cast/2` for more information.
+  Sends a asynchronous request to the `PeerConnection` process.
+  See `Connection.cast/2` for more information.
   """
-  defdelegate cast(conn, req), to: GenServer
+  defdelegate cast(conn, req), to: Connection
 
   @doc """
   Sends a reply to a request sent by `call/3`.
-  See `GenServer.reply/2` for more information.
+  See `Connection.reply/2` for more information.
   """
-  defdelegate reply(from, response), to: :gen_server
+  defdelegate reply(from, response), to: Connection
 
 
   @doc false
@@ -355,7 +395,7 @@ defmodule DBux.PeerConnection do
 
     {:ok, address, auth_mechanisms, mod_state} = mod.init(mod_options)
     {:ok, {transport_mod, transport_opts}} = DBux.Transport.get_module_for_address(address)
-    {:ok, {auth_mod, auth_opts}} = DBux.Auth.get_module_for_method(hd(auth_mechanisms)) # FIXME support more mechanisms
+    {:ok, {auth_mod, auth_opts}} = DBux.Auth.get_module_for_method(hd(auth_mechanisms)) # TODO support more mechanisms
 
     {:ok, transport_proc} = transport_mod.start_link(self(), transport_opts)
     {:ok, auth_proc}      = auth_mod.start_link(self(), auth_opts)
@@ -397,8 +437,26 @@ defmodule DBux.PeerConnection do
         end
 
       {:error, _} ->
-        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Failed to connect")
+        if @debug, do: Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to connect transport")
         {:backoff, @reconnect_timeout, %{state | state: :init}}
+    end
+  end
+
+
+  @doc false
+  def disconnect(:error, %{mod: mod, mod_state: mod_state, transport_mod: transport_mod, transport_proc: transport_proc} = state) do
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Disconnected")
+
+    case transport_mod.do_disconnect(transport_proc) do
+      :ok ->
+        case mod.handle_down(mod_state) do
+          {:noreply, new_mod_state} ->
+            {:backoff, 1000, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+        end
+
+      {:error, _} ->
+        if @debug, do: Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to disconnect transport")
+        {:backoff, 1000, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}}
     end
   end
 
@@ -455,12 +513,12 @@ defmodule DBux.PeerConnection do
 
           {:error, reason} ->
             Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send Hello: #{inspect(reason)}")
-            {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+            {:disconnect, :error, state}
         end
 
       {:error, reason} ->
         Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to begin message transmission: #{inspect(reason)}")
-        {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+        {:disconnect, :error, state}
     end
   end
 
@@ -468,21 +526,21 @@ defmodule DBux.PeerConnection do
   @doc false
   def handle_info(:dbux_authentication_failed, %{state: :authenticating} = state) do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: authentication failed")
-    {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+    {:disconnect, :error, state}
   end
 
 
   @doc false
   def handle_info(:dbux_authentication_error, %{state: :authenticating} = state) do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: authentication error")
-    {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+    {:disconnect, :error, state}
   end
 
 
   @doc false
   def handle_info(:dbux_transport_down, state) do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Transport down")
-    {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+    {:disconnect, :error, state}
   end
 
 
@@ -505,7 +563,7 @@ defmodule DBux.PeerConnection do
 
           true ->
             Logger.warn("[DBux.PeerConnection #{inspect(self())}] Got unknown reply #{inspect(message)}")
-            {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+            {:disconnect, :error, state}
         end
 
       {:error, :bitstring_too_short} ->
@@ -513,7 +571,7 @@ defmodule DBux.PeerConnection do
 
       {:error, reason} ->
         Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
-        {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+        {:disconnect, :error, state}
     end
   end
 
@@ -550,7 +608,7 @@ defmodule DBux.PeerConnection do
 
       {:error, reason} ->
         Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
-        {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
+        {:disconnect, :error, state}
     end
   end
 

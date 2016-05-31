@@ -7,6 +7,10 @@ defmodule DBux.Transport do
     :ok |
     {:error, any}
 
+  @callback do_disconnect(pid) ::
+    :ok |
+    {:error, any}
+
   @callback do_send(pid, binary) ::
     :ok |
     {:error, any}
