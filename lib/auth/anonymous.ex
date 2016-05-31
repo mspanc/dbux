@@ -1,6 +1,6 @@
 defmodule DBux.Auth.Anonymous do
   require Logger
-  use GenServer
+  use Connection
 
   @behaviour DBux.Auth
 
@@ -8,7 +8,7 @@ defmodule DBux.Auth.Anonymous do
 
   def start_link(_parent, options) do
     if @debug, do: Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Start link")
-    PeerConnection.start_link(__MODULE__, options)
+    Connection.start_link(__MODULE__, options)
   end
 
 
@@ -20,7 +20,7 @@ defmodule DBux.Auth.Anonymous do
 
 
   def do_handshake(auth_proc, transport_mod, transport_proc) do
-    GenServer.call(auth_proc, {:handshake, {transport_mod, transport_proc}})
+    Connection.call(auth_proc, {:handshake, {transport_mod, transport_proc}})
   end
 
 
