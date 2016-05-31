@@ -363,7 +363,7 @@ defmodule DBux.PeerConnection do
   """
   @spec send_method_call(GenServer.server, String.t, String.t, DBux.Value.list_of_values, String.t | nil) :: {:ok, DBux.Serial.t} | {:error, any}
   def send_method_call(bus, path, interface, member, body \\ [], destination \\ nil) when is_binary(path) and is_binary(interface) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
-    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_method_call(0, path, interface, member, body, destination)})
+    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_method_call(path, interface, member, body, destination)})
   end
 
 
@@ -379,7 +379,7 @@ defmodule DBux.PeerConnection do
   """
   @spec send_signal(GenServer.server, String.t, String.t, String.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
   def send_signal(bus, path, interface, member, body \\ []) when is_binary(path) and is_binary(interface) and is_list(body) do
-    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_signal(0, path, interface, member, body)})
+    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_signal(path, interface, member, body)})
   end
 
 
@@ -395,7 +395,7 @@ defmodule DBux.PeerConnection do
   """
   @spec send_method_return(GenServer.server, DBux.Serial.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
   def send_method_return(bus, reply_serial, body \\ []) when is_number(reply_serial) and is_list(body) do
-    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_method_return(0, reply_serial, body)})
+    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_method_return(reply_serial, body)})
   end
 
 
@@ -411,7 +411,7 @@ defmodule DBux.PeerConnection do
   """
   @spec send_error(GenServer.server, DBux.Serial.t, String.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
   def send_error(bus, reply_serial, error_name, body \\ []) when is_number(reply_serial) and is_binary(error_name) and is_list(body) do
-    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_error(0, reply_serial, error_name, body)})
+    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_error(reply_serial, error_name, body)})
   end
 
 
