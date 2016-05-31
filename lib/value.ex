@@ -314,7 +314,7 @@ defmodule DBux.Value do
             {:error, :bitstring_too_short}
 
           else
-            padding_size = compute_padding_size(body_length, subtype_major)
+            padding_size = DBux.Type.compute_padding_size(body_length, subtype_major)
             << body_bitstring :: binary-size(body_length), padding_bitstring :: binary-size(padding_size), rest :: binary >> = rest
             if @debug, do: debug("Unmarshalling array elements: body_length = #{inspect(body_length)}, padding_size = #{inspect(padding_size)}, body_bitstring = #{inspect(body_bitstring)}, rest = #{inspect(rest)}", depth)
 
@@ -734,7 +734,7 @@ defmodule DBux.Value do
         {:ok, {value, rest}} ->
           if rest != << >> do
             parsed_bytes = byte_size(bitstring) - byte_size(rest)
-            padding_size = compute_padding_size(parsed_bytes, subtype_major)
+            padding_size = DBux.Type.compute_padding_size(parsed_bytes, subtype_major)
             << padding :: binary-size(padding_size), rest_without_padding :: binary >> = rest
             if @debug, do: debug("Unmarshalled array element: value = #{inspect(value)}, parsed bytes = #{byte_size(bitstring) - byte_size(rest)}, padding_size = #{inspect(padding_size)}, rest_without_padding = #{inspect(rest_without_padding)}", depth)
 
@@ -748,26 +748,6 @@ defmodule DBux.Value do
         {:error, reason} ->
           {:error, reason}
       end
-    end
-  end
-
-
-  # Computes padding size for container types.
-  # It just takes container type, and ignores inner type.
-  defp compute_padding_size(length, type) when is_tuple(type) do
-    {subtype_major, _} = type
-    compute_padding_size(length, subtype_major)
-  end
-
-
-  # Computes padding size for a type, given data length and type name.
-  defp compute_padding_size(length, type) when is_atom(type) do
-    align = DBux.Type.align_size(type)
-    padding = rem(length, align)
-
-    case padding do
-      0 -> 0
-      _ -> align - padding
     end
   end
 

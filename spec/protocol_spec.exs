@@ -36,6 +36,49 @@ defmodule DBux.ProtocolSpec do
         end
       end
 
+
+      context "for list of simple types that need to be aligned" do
+        let :bitstring, do: <<5, 0, 0, 0, 97, 98, 99, 100, 101, 0, 0, 0, 210, 4, 0, 0>>
+        let :signature, do: "si"
+
+        context "if it is set to return plain values" do
+          let :unwrap_values, do: true
+
+          it "should return an ok result" do
+            expect(described_module.unmarshall_bitstring(bitstring, endianness, signature, unwrap_values)).to be_ok_result
+          end
+
+          it "should return a valid list of values" do
+            {:ok, {values, _rest}} = described_module.unmarshall_bitstring(bitstring, endianness, signature, unwrap_values)
+            expect(values).to eq ["abcde", 1234]
+          end
+
+          it "should return an empty rest" do
+            {:ok, {_values, rest}} = described_module.unmarshall_bitstring(bitstring, endianness, signature, unwrap_values)
+            expect(rest).to eq << >>
+          end
+        end
+
+        context "if it is set to return wrapped values" do
+          let :unwrap_values, do: false
+
+          it "should return an ok result" do
+            expect(described_module.unmarshall_bitstring(bitstring, endianness, signature, unwrap_values)).to be_ok_result
+          end
+
+          it "should return a valid list of values" do
+            {:ok, {values, _rest}} = described_module.unmarshall_bitstring(bitstring, endianness, signature, unwrap_values)
+            expect(values).to eq [%DBux.Value{type: :string, value: "abcde"}, %DBux.Value{type: :int32, value: 1234}]
+          end
+
+          it "should return an empty rest" do
+            {:ok, {_values, rest}} = described_module.unmarshall_bitstring(bitstring, endianness, signature, unwrap_values)
+            expect(rest).to eq << >>
+          end
+        end
+      end
+
+
       # FIXME it ignores padding while unmarshalling
       xcontext "if bitstring contains not enough data for values that match signature" do
         let :bitstring, do: << 0x6c, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x6d, 0x00, 0x00, 0x00, 0x01, 0x01, 0x6f, 0x00, 0x15, 0x00, 0x00, 0x00, 0x2f, 0x6f, 0x72, 0x67, 0x2f, 0x66, 0x72, 0x65, 0x65, 0x64, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x2f, 0x44, 0x42, 0x75, 0x73, 0x00, 0x00, 0x00, 0x03, 0x01, 0x73, 0x00, 0x05, 0x00, 0x00, 0x00, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x00, 0x00, 0x00, 0x02, 0x01, 0x73, 0x00, 0x14, 0x00, 0x00, 0x00, 0x6f, 0x72, 0x67, 0x2e, 0x66, 0x72, 0x65, 0x65, 0x64, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x2e, 0x44, 0x42, 0x75, 0x73, 0x00, 0x00, 0x00, 0x00, 0x06, 0x01, 0x73, 0x00, 0x14, 0x00, 0x00, 0x00, 0x6f, 0x72, 0x67, 0x2e, 0x66, 0x72, 0x65, 0x65, 0x64, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x2e, 0x44, 0x42, 0x75, 0x73, 0x00, 0x00, 0x00>> # 1 byte removed

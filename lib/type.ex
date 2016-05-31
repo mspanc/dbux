@@ -116,6 +116,27 @@ defmodule DBux.Type do
   def align_size({subtype_major, _subtype_minor}), do: align_size(subtype_major)
 
 
+  # Computes padding size for container types.
+  # It just takes container type, and ignores inner type.
+  @doc false
+  def compute_padding_size(length, type) when is_tuple(type) do
+    {subtype_major, _} = type
+    compute_padding_size(length, subtype_major)
+  end
+
+
+  # Computes padding size for a type, given data length and type name.
+  @doc false
+  def compute_padding_size(length, type) when is_atom(type) do
+    align = DBux.Type.align_size(type)
+    padding = rem(length, align)
+
+    case padding do
+      0 -> 0
+      _ -> align - padding
+    end
+  end
+
 
   # ------ TOP LEVEL ------
 
