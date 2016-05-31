@@ -144,10 +144,10 @@ defmodule DBux.Value do
 
     case endianness do
       :little_endian ->
-        {:ok, length_bitstring, _} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
+        {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
         length_bitstring <> << value :: binary-unit(8)-little, 0 >>
       :big_endian ->
-        {:ok, length_bitstring, _} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
+        {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
         length_bitstring <> << value :: binary-unit(8)-big, 0 >>
     end |> align(:string)
   end
@@ -169,10 +169,10 @@ defmodule DBux.Value do
 
     case endianness do
       :little_endian ->
-        {:ok, length_bitstring, _} = marshall(%DBux.Value{type: :byte, value: byte_size(value)}, endianness)
+        {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :byte, value: byte_size(value)}, endianness)
         length_bitstring <> << value :: binary-unit(8)-little, 0 >>
       :big_endian ->
-        {:ok, length_bitstring, _} = marshall(%DBux.Value{type: :byte, value: byte_size(value)}, endianness)
+        {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :byte, value: byte_size(value)}, endianness)
         length_bitstring <> << value :: binary-unit(8)-big, 0 >>
     end |> align(:signature)
   end
@@ -194,12 +194,12 @@ defmodule DBux.Value do
         throw :todo # TODO
 
       _ ->
-        {:ok, bitstring, _} = %DBux.Value{type: :signature, value: DBux.Type.signature(subtype)} |> marshall(endianness)
+        {:ok, {bitstring, _}} = %DBux.Value{type: :signature, value: DBux.Type.signature(subtype)} |> marshall(endianness)
         bitstring
     end
 
-    {:ok, body_bitstring, body_padding} = %DBux.Value{type: subtype, value: value} |> marshall(endianness)
-    {:ok, signature_bitstring <> body_bitstring, body_padding}
+    {:ok, {body_bitstring, body_padding}} = %DBux.Value{type: subtype, value: value} |> marshall(endianness)
+    {:ok, {signature_bitstring <> body_bitstring, body_padding}}
   end
 
 
@@ -209,13 +209,13 @@ defmodule DBux.Value do
       if element.type != subtype, do: throw {:badarg, :value, :invalid}
       {acc_bitstring, _} = acc
 
-      {:ok, element_bitstring, element_padding} = marshall(element, endianness)
+      {:ok, {element_bitstring, element_padding}} = marshall(element, endianness)
 
       {acc_bitstring <> element_bitstring, element_padding}
     end)
 
-    {:ok, length_bitstring, _} = %DBux.Value{type: :uint32, value: byte_size(body_bitstring) - last_element_padding} |> marshall(endianness)
-    {:ok, length_bitstring <> body_bitstring, 0} # FIXME? shouldn't it be aligned by itself?
+    {:ok, {length_bitstring, _}} = %DBux.Value{type: :uint32, value: byte_size(body_bitstring) - last_element_padding} |> marshall(endianness)
+    {:ok, {length_bitstring <> body_bitstring, 0}} # FIXME? shouldn't it be aligned by itself?
   end
 
 
@@ -233,12 +233,12 @@ defmodule DBux.Value do
       {acc_bitstring, _, acc_index} = acc
       if Enum.at(subtype, acc_index) != element.type, do: throw {:badarg, :value, :signature_and_value_type_mismatch}
 
-      {:ok, element_bitstring, element_padding} = marshall(element, endianness)
+      {:ok, {element_bitstring, element_padding}} = marshall(element, endianness)
       {acc_bitstring <> element_bitstring, element_padding, acc_index + 1}
     end)
 
-    {:ok, struct_bitstring, _} = body_bitstring |> align(:struct)
-    {:ok, struct_bitstring, last_element_padding}
+    {:ok, {struct_bitstring, _}} = body_bitstring |> align(:struct)
+    {:ok, {struct_bitstring, last_element_padding}}
   end
 
 
@@ -264,11 +264,11 @@ defmodule DBux.Value do
   def align(bitstring, bytes) when is_binary(bitstring) and is_number(bytes) do
     case rem(byte_size(bitstring), bytes) do
       0 ->
-        {:ok, bitstring, 0}
+        {:ok, {bitstring, 0}}
 
       remaining ->
         missing_bytes = bytes - remaining
-        {:ok, bitstring <> String.duplicate(<< 0 >>, missing_bytes), missing_bytes}
+        {:ok, {bitstring <> String.duplicate(<< 0 >>, missing_bytes), missing_bytes}}
     end
   end
 

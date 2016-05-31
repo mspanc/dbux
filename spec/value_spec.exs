@@ -15,24 +15,24 @@ defmodule DBux.ValueSpec do
           it "should return a tuple of format {:ok, bitstring, padding_size}" do
             expect(result).to be_tuple
 
-            {status, bitstring, padding_size} = result
+            {status, {bitstring, padding_size}} = result
             expect(status).to eq :ok
             expect(bitstring).to be_bitstring
             expect(padding_size).to be_number
           end
 
           it "should return 1-byte long bitstring" do
-            {:ok, bitstring, _} = result
+            {:ok, {bitstring, _}} = result
             expect(byte_size(bitstring)).to eq 1
           end
 
           it "should return bitstring containing its ASCII representation" do
-            {:ok, bitstring, _} = result
+            {:ok, {bitstring, _}} = result
             expect(bitstring).to eq << 120 >>
           end
 
           it "should return padding set to 0" do
-            {:ok, _, padding} = result
+            {:ok, {_, padding}} = result
             expect(padding).to eq 0
           end
         end
@@ -43,24 +43,24 @@ defmodule DBux.ValueSpec do
           it "should return a tuple of format {:ok, bitstring, padding_size}" do
             expect(result).to be_tuple
 
-            {status, bitstring, padding_size} = result
+            {status, {bitstring, padding_size}} = result
             expect(status).to eq :ok
             expect(bitstring).to be_bitstring
             expect(padding_size).to be_number
           end
 
           it "should return 1-byte long bitstring" do
-            {:ok, bitstring, _} = result
+            {:ok, {bitstring, _}} = result
             expect(byte_size(bitstring)).to eq 1
           end
 
           it "should return bitstring containing passed integer" do
-            {:ok, bitstring, _} = result
+            {:ok, {bitstring, _}} = result
             expect(bitstring).to eq << 150 >>
           end
 
           it "should return padding set to 0" do
-            {:ok, _, padding} = result
+            {:ok, {_, padding}} = result
             expect(padding).to eq 0
           end
         end
@@ -122,24 +122,24 @@ defmodule DBux.ValueSpec do
               it "should return a tuple of format {:ok, bitstring, padding_size}" do
                 expect(result).to be_tuple
 
-                {status, bitstring, padding_size} = result
+                {status, {bitstring, padding_size}} = result
                 expect(status).to eq :ok
                 expect(bitstring).to be_bitstring
                 expect(padding_size).to be_number
               end
 
               it "should return 4-byte long bitstring" do
-                {:ok, bitstring, _} = result
+                {:ok, {bitstring, _}} = result
                 expect(byte_size(bitstring)).to eq 4
               end
 
               it "should return bitstring equal to 1 marshalled as uint32" do
-                {:ok, bitstring, _} = result
+                {:ok, {bitstring, _}} = result
                 expect(bitstring).to eq <<1, 0, 0, 0>>
               end
 
               it "should return padding set to 0" do
-                {:ok, _, padding} = result
+                {:ok, {_, padding}} = result
                 expect(padding).to eq 0
               end
             end
@@ -150,24 +150,24 @@ defmodule DBux.ValueSpec do
               it "should return a tuple of format {:ok, bitstring, padding_size}" do
                 expect(result).to be_tuple
 
-                {status, bitstring, padding_size} = result
+                {status, {bitstring, padding_size}} = result
                 expect(status).to eq :ok
                 expect(bitstring).to be_bitstring
                 expect(padding_size).to be_number
               end
 
               it "should return 4-byte long bitstring" do
-                {:ok, bitstring, _} = result
+                {:ok, {bitstring, _}} = result
                 expect(byte_size(bitstring)).to eq 4
               end
 
               it "should return bitstring equal to 1 marshalled as uint32" do
-                {:ok, bitstring, _} = result
+                {:ok, {bitstring, _}} = result
                 expect(bitstring).to eq <<0, 0, 0, 1>>
               end
 
               it "should return padding set to 0" do
-                {:ok, _, padding} = result
+                {:ok, {_, padding}} = result
                 expect(padding).to eq 0
               end
             end
@@ -190,24 +190,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 2-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 2
             end
 
             it "should return bitstring containing its little-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(2)-unit(8)-signed-little >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -218,24 +218,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 2-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 2
             end
 
             it "should return bitstring containing its big-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(2)-unit(8)-signed-big >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -279,24 +279,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 2-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 2
             end
 
             it "should return bitstring containing its little-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(2)-unit(8)-unsigned-little >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -307,24 +307,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 2-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 2
             end
 
             it "should return bitstring containing its big-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(2)-unit(8)-unsigned-big >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -368,24 +368,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 4-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 4
             end
 
             it "should return bitstring containing its little-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(4)-unit(8)-signed-little >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -396,24 +396,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 4-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 4
             end
 
             it "should return bitstring containing its big-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(4)-unit(8)-signed-big >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -457,24 +457,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 4-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 4
             end
 
             it "should return bitstring containing its little-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(4)-unit(8)-unsigned-little >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -485,24 +485,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 4-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 4
             end
 
             it "should return bitstring containing its big-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(4)-unit(8)-unsigned-big >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -546,24 +546,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 8-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 8
             end
 
             it "should return bitstring containing its little-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(8)-unit(8)-signed-little >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -574,24 +574,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 8-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 8
             end
 
             it "should return bitstring containing its big-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(8)-unit(8)-signed-big >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -635,24 +635,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 8-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 8
             end
 
             it "should return bitstring containing its little-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(8)-unit(8)-unsigned-little >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -663,24 +663,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 8-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 8
             end
 
             it "should return bitstring containing its big-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(8)-unit(8)-unsigned-big >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -724,24 +724,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 8-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 8
             end
 
             it "should return bitstring containing its little-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: float-size(8)-unit(8)-little >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -752,24 +752,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 8-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 8
             end
 
             it "should return bitstring containing its big-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: float-size(8)-unit(8)-big >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -791,24 +791,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 16
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq(<<10, 0, 0, 0, 97, 98, 99, 100, 197, 130, 195, 179, 197, 188, 0, 0>>)
             end
 
             it "should return padding set to missing bytes added to match alignment of 4" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 1
             end
           end
@@ -819,24 +819,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 16
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq(<<0, 0, 0, 10, 97, 98, 99, 100, 197, 130, 195, 179, 197, 188, 0, 0>>)
             end
 
             it "should return padding set to missing bytes added to match alignment of 4" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 1
             end
           end
@@ -894,24 +894,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 4-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 4
             end
 
             it "should return bitstring containing its little-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(4)-unit(8)-unsigned-little >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -922,24 +922,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return 4-byte long bitstring" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 4
             end
 
             it "should return bitstring containing its big-endian representation" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq <<value :: size(4)-unit(8)-unsigned-big >>
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -983,24 +983,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 32
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq(<<25, 0, 0, 0, 47, 99, 111, 109, 47, 101, 120, 97, 109, 112, 108, 101, 47, 77, 117, 115, 105, 99, 80, 108, 97, 121, 101, 114, 49, 0, 0, 0>>)
             end
 
             it "should return padding set to missing bytes added to match alignment of 4" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 2
             end
           end
@@ -1011,24 +1011,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 4-byte length plus NUL terminator, aligned to 4 bytes" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 32
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator plus alignment" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq(<<0, 0, 0, 25, 47, 99, 111, 109, 47, 101, 120, 97, 109, 112, 108, 101, 47, 77, 117, 115, 105, 99, 80, 108, 97, 121, 101, 114, 49, 0, 0, 0>>)
             end
 
             it "should return padding set to missing bytes added to match alignment of 4" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 2
             end
           end
@@ -1088,24 +1088,24 @@ defmodule DBux.ValueSpec do
             it "should return a tuple of format {:ok, bitstring, padding_size}" do
               expect(result).to be_tuple
 
-              {status, bitstring, padding_size} = result
+              {status, {bitstring, padding_size}} = result
               expect(status).to eq :ok
               expect(bitstring).to be_bitstring
               expect(padding_size).to be_number
             end
 
             it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 1-byte length plus NUL terminator" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 13
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq(<<11, 121, 121, 121, 121, 117, 117, 97, 40, 121, 118, 41, 0>>)
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -1114,17 +1114,17 @@ defmodule DBux.ValueSpec do
             let :endianness, do: :big_endian
 
             it "should return bitstring that uses appropriate length for storing UTF-8 characters plus 1-byte length plus NUL terminator" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(byte_size(bitstring)).to eq 13
             end
 
             it "should return bitstring containing its byte length (excluding NUL terminator) stored as uint32 plus little-endian representation plus NUL terminator" do
-              {:ok, bitstring, _} = result
+              {:ok, {bitstring, _}} = result
               expect(bitstring).to eq(<<11, 121, 121, 121, 121, 117, 117, 97, 40, 121, 118, 41, 0>>)
             end
 
             it "should return padding set to 0" do
-              {:ok, _, padding} = result
+              {:ok, {_, padding}} = result
               expect(padding).to eq 0
             end
           end
@@ -1168,12 +1168,126 @@ defmodule DBux.ValueSpec do
     xcontext "if passed 'array' value" do
       let :type, do: :array
 
+      pending "and subtype is a simple type"
+
+      context "and subtype is a struct" do
+        let :subtype, do: :struct
+
+        context "and its elements need padding" do
+          let :value, do: %DBux.Value{type: :struct, subtype: [:string], value: [%DBux.Value{type: :string, value: "abcdefgh"}]}
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return an ok result" do
+              expect(described_module.marshall(value, endianness)).to be_ok_result
+            end
+
+            it "should return an a valid bitstring aligned to the array element type alignment size" do
+              {:ok, {bitstring, _padding}} = described_module.marshall(value, endianness)
+              expect(bitstring).to eq <<8, 0, 0, 0, 97, 98, 99, 100, 101, 102, 103, 104, 0, 0, 0, 0, 0, 0, 0, 0>>
+            end
+
+            it "should return a last element padding" do
+              {:ok, {_bitstring, padding}} = described_module.marshall(value, endianness)
+              expect(padding).to eq 7
+            end
+          end
+
+          pending "and endianness is big-endian"
+        end
+      end
     end
 
 
-    xcontext "if passed 'struct' value" do
+    context "if passed 'struct' value" do
       let :type, do: :struct
 
+      context "and subtype is a single simple type" do
+        let :value, do: %DBux.Value{type: type, subtype: [:string], value: [%DBux.Value{type: :string, value: subvalue}]}
+
+        context "and its elements need padding" do
+          let :subvalue, do: "abcdefgh"
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return an ok result" do
+              expect(described_module.marshall(value, endianness)).to be_ok_result
+            end
+
+            it "should return an a valid bitstring aligned to the array element type alignment size" do
+              {:ok, {bitstring, _padding}} = described_module.marshall(value, endianness)
+              expect(bitstring).to eq <<8, 0, 0, 0, 97, 98, 99, 100, 101, 102, 103, 104, 0, 0, 0, 0 >>
+            end
+
+            it "should return a last element padding" do
+              {:ok, {_bitstring, padding}} = described_module.marshall(value, endianness)
+              expect(padding).to eq 3
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return an ok result" do
+              expect(described_module.marshall(value, endianness)).to be_ok_result
+            end
+
+            it "should return an a valid bitstring aligned to the array element type alignment size" do
+              {:ok, {bitstring, _padding}} = described_module.marshall(value, endianness)
+              expect(bitstring).to eq <<0, 0, 0, 8, 97, 98, 99, 100, 101, 102, 103, 104, 0, 0, 0, 0 >>
+            end
+
+            it "should return a last element padding" do
+              {:ok, {_bitstring, padding}} = described_module.marshall(value, endianness)
+              expect(padding).to eq 3
+            end
+          end
+        end
+
+        context "and its elements do not need padding" do
+          let :subvalue, do: "abc"
+
+          context "and endianness is little-endian" do
+            let :endianness, do: :little_endian
+
+            it "should return an ok result" do
+              expect(described_module.marshall(value, endianness)).to be_ok_result
+            end
+
+            it "should return an a valid bitstring aligned to the array element type alignment size" do
+              {:ok, {bitstring, _padding}} = described_module.marshall(value, endianness)
+              expect(bitstring).to eq <<3, 0, 0, 0, 97, 98, 99, 0 >>
+            end
+
+            it "should return a last element padding" do
+              {:ok, {_bitstring, padding}} = described_module.marshall(value, endianness)
+              expect(padding).to eq 0
+            end
+          end
+
+          context "and endianness is big-endian" do
+            let :endianness, do: :big_endian
+
+            it "should return an ok result" do
+              expect(described_module.marshall(value, endianness)).to be_ok_result
+            end
+
+            it "should return an a valid bitstring aligned to the array element type alignment size" do
+              {:ok, {bitstring, _padding}} = described_module.marshall(value, endianness)
+              expect(bitstring).to eq <<0, 0, 0, 3, 97, 98, 99, 0 >>
+            end
+
+            it "should return a last element padding" do
+              {:ok, {_bitstring, padding}} = described_module.marshall(value, endianness)
+              expect(padding).to eq 0
+            end
+          end
+        end
+      end
+
+      pending "and subtype is a container type"
     end
 
 

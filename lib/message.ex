@@ -131,13 +131,13 @@ defmodule DBux.Message do
     #
 
     {:ok, {body_bitstring, body_signature}} = DBux.Protocol.marshall_bitstring(message.body, endianness)
-    {:ok, header_body_length_bitstring, _} = %DBux.Value{type: :uint32, value: byte_size(body_bitstring)} |> DBux.Value.marshall(endianness)
+    {:ok, {header_body_length_bitstring, _}} = %DBux.Value{type: :uint32, value: byte_size(body_bitstring)} |> DBux.Value.marshall(endianness)
 
 
     # uint32
     # The serial of this message, used as a cookie by the sender to identify
     # the reply corresponding to this request. This must not be zero.
-    {:ok, header_serial_bitstring, _} = %DBux.Value{type: :uint32, value: message.serial} |> DBux.Value.marshall(endianness)
+    {:ok, {header_serial_bitstring, _}} = %DBux.Value{type: :uint32, value: message.serial} |> DBux.Value.marshall(endianness)
 
 
     # ARRAY of STRUCT of (BYTE,VARIANT)
@@ -215,9 +215,9 @@ defmodule DBux.Message do
         header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 9}, %DBux.Value{type: :variant, subtype: :uint32, value: message.unix_fds}]}]
     end
 
-    {:ok, header_fields_bitstring, _} = %DBux.Value{type: :array, subtype: :struct, value: header_fields_value} |> DBux.Value.marshall(endianness)
+    {:ok, {header_fields_bitstring, _}} = %DBux.Value{type: :array, subtype: :struct, value: header_fields_value} |> DBux.Value.marshall(endianness)
 
-    {:ok, message_bitstring, _padding} = header_endianness_bitstring <>
+    {:ok, {message_bitstring, _padding}} = header_endianness_bitstring <>
       header_message_type_bitstring <>
       header_flags_bitstring <>
       header_protocol_bitstring <>
