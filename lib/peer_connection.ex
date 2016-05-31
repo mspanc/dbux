@@ -558,7 +558,7 @@ defmodule DBux.PeerConnection do
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Began message transmission")
 
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Sending Hello")
-        case send_message(DBux.MessageTemplate.hello(0), state) do
+        case do_send_message(DBux.MessageTemplate.hello(0), state) do
           {:ok, serial} ->
             {:noreply, %{state | state: :authenticated, hello_serial: serial}}
 
