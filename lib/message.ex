@@ -14,8 +14,10 @@ defmodule DBux.Message do
     sender:       nil,
     unix_fds:     nil
 
+  @type message_type :: :method_call | :method_return | :error | :signal
+
   @type t :: %DBux.Message{
-    message_type: :method_call | :method_return | :error | :signal,
+    message_type: message_type,
     serial:       DBux.Serial.t,
     flags:        number,
     path:         String.t,
