@@ -647,7 +647,7 @@ defmodule DBux.PeerConnection do
               message.reply_serial == hello_serial ->
                 case message.message_type do
                   :method_return ->
-                    {:hellocaptured, {mod.handle_up(mod_state), message_queue}, %{state | hello_serial: nil}}
+                    {:ok, {mod.handle_up(mod_state), message_queue}, %{state | hello_serial: nil}}
 
                   _ ->
                     {:error, :hellofailed}
