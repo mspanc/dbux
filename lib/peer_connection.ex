@@ -200,6 +200,9 @@ defmodule DBux.PeerConnection do
         {:noreply, state}
       end
 
+      defdelegate handle_call(_req, _sender, _state), to: Connection
+
+
       defoverridable [
         handle_up: 1,
         handle_down: 1,
