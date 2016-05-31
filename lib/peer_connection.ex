@@ -324,10 +324,29 @@ defmodule DBux.PeerConnection do
   end
 
 
-  defdelegate call(bus, req),          to: Connection
-  defdelegate call(bus, req, timeout), to: Connection
-  defdelegate cast(bus, req),          to: Connection
-  defdelegate reply(from, response),   to: Connection
+  @doc """
+  Sends a synchronous call to the `Connection` process and waits for a reply.
+  See `GenServer.call/2` for more information.
+  """
+  defdelegate call(conn, req), to: :gen_server
+
+  @doc """
+  Sends a synchronous request to the `Connection` process and waits for a reply.
+  See `GenServer.call/3` for more information.
+  """
+  defdelegate call(conn, req, timeout), to: :gen_server
+
+  @doc """
+  Sends a asynchronous request to the `Connection` process.
+  See `GenServer.cast/2` for more information.
+  """
+  defdelegate cast(conn, req), to: GenServer
+
+  @doc """
+  Sends a reply to a request sent by `call/3`.
+  See `GenServer.reply/2` for more information.
+  """
+  defdelegate reply(from, response), to: :gen_server
 
 
   @doc false
