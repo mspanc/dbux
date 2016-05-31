@@ -47,7 +47,7 @@ defmodule DBux.MessageTemplate do
     # TODO add support for path_matches
 
     DBux.Message.build_method_call(serial, "/org/freedesktop/DBus", "org.freedesktop.DBus", "AddMatch", [
-      %DBux.Value{type: :string, value: filter},
+      %DBux.Value{type: :string, value: Enum.join(filter, ",")},
     ], "org.freedesktop.DBus")
   end
 end
