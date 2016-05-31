@@ -710,10 +710,10 @@ defmodule DBux.PeerConnection do
       {:ok, serial} ->
         case message.message_type do
           :method_call ->
-            do_send_message_queue(rest, state)
+            do_send_message_queue(rest, %{state | message_queue: message_queue |> Map.put(serial, {id, System.system_time})})
 
           _ ->
-            do_send_message_queue(rest, %{state | message_queue: message_queue |> Map.put(serial, {id, System.system_time})})
+            do_send_message_queue(rest, state)
         end
 
       {:error, reason} ->
