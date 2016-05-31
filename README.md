@@ -1,6 +1,8 @@
 # DBux
 [![Build Status](https://travis-ci.org/mspanc/dbux.svg?branch=master)](https://travis-ci.org/mspanc/dbux)
 [![Coverage Status](https://coveralls.io/repos/github/mspanc/dbux/badge.svg?branch=master)](https://coveralls.io/github/mspanc/dbux?branch=master)
+[![Hex.pm](https://img.shields.io/hexpm/v/dbux.svg)](https://hex.pm/packages/dbux)
+[![Hex.pm](https://img.shields.io/hexpm/dt/dbux.svg)](https://hex.pm/packages/dbux)
 
 DBux provides bindings for [D-Bus](http://dbus.freedesktop.org) IPC
 protocol for the [Elixir](http://elixir-lang.org) programming language.
