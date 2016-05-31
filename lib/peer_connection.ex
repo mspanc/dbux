@@ -644,8 +644,15 @@ defmodule DBux.PeerConnection do
 
           :method_return ->
             cond do
-              message.serial == hello_serial ->
-                {mod.handle_up(mod_state), message_queue}
+              message.reply_serial == hello_serial ->
+                case message.message_type do
+                  :method_return ->
+                    {mod.handle_up(mod_state), message_queue}
+
+                  _ ->
+                    Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to finish Hello handshake")
+                    {:disconnect, :error, state}
+                end
 
               true ->
                 case message_queue |> Map.pop(message.reply_serial) do
