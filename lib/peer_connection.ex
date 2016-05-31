@@ -597,50 +597,6 @@ defmodule DBux.PeerConnection do
 
 
   @doc false
-  def handle_info({:dbux_transport_receive, bitstream}, %{mod: mod, mod_state: mod_state, state: :authenticated, hello_serial: hello_serial, buffer: buffer, unwrap_values: unwrap_values} = state) do
-    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received when authenticated")
-
-    case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
-      {:ok, {message, rest}} ->
-        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received message #{inspect(message)}")
-        cond do
-          message.reply_serial == hello_serial ->
-            unique_name = hd(message.body)
-            if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Got unique name #{unique_name}")
-
-            case mod.handle_up(mod_state) do
-              {:noreply, new_mod_state} ->
-                {:noreply, %{state | state: :ready, unique_name: unique_name, buffer: rest, mod_state: new_mod_state}}
-
-              {:send, messages, new_mod_state} ->
-                new_state = %{state | state: :ready, unique_name: unique_name, buffer: rest, mod_state: new_mod_state}
-
-                case do_send_message_queue(messages, new_state) do
-                  {:ok, new_state} ->
-                    {:noreply, new_state}
-
-                  {:error, reason} ->
-                    Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send message queue: reason = #{inspect(reason)}")
-                    {:disconnect, :error, state}
-                end
-            end
-
-          true ->
-            Logger.warn("[DBux.PeerConnection #{inspect(self())}] Got unknown reply #{inspect(message)}")
-            {:disconnect, :error, state}
-        end
-
-      {:error, :bitstring_too_short} ->
-        {:noreply, %{state | buffer: buffer <> bitstream}}
-
-      {:error, reason} ->
-        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
-        {:disconnect, :error, state}
-    end
-  end
-
-
-  @doc false
   def handle_info({:dbux_transport_receive, bitstream}, %{state: :ready, buffer: buffer} = state) do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received when ready")
 
@@ -677,7 +633,7 @@ defmodule DBux.PeerConnection do
   end
 
 
-  defp parse_received_data(bitstream, %{mod: mod, mod_state: mod_state, unwrap_values: unwrap_values, message_queue: message_queue} = state) do
+  defp parse_received_data(bitstream, %{mod: mod, mod_state: mod_state, unwrap_values: unwrap_values, message_queue: message_queue, hello_serial: hello_serial} = state) do
     case DBux.Message.unmarshall(bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsed received message, message = #{inspect(message)}")
@@ -687,12 +643,18 @@ defmodule DBux.PeerConnection do
             {mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
 
           :method_return ->
-            case message_queue |> Map.pop(message.reply_serial) do
-              {{id, _}, new_message_queue} ->
-                {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}
+            cond do
+              message.serial == hello_serial ->
+                mod.handle_up(mod_state)
 
-              {nil, new_message_queue} ->
-                {mod.handle_method_return(message.serial, message.reply_serial, message.body, nil, mod_state), new_message_queue}
+              true ->
+                case message_queue |> Map.pop(message.reply_serial) do
+                  {{id, _}, new_message_queue} ->
+                    {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}
+
+                  {nil, new_message_queue} ->
+                    {mod.handle_method_return(message.serial, message.reply_serial, message.body, nil, mod_state), new_message_queue}
+                end
             end
 
           :error ->
