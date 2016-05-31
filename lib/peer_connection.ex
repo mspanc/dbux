@@ -645,7 +645,7 @@ defmodule DBux.PeerConnection do
           :method_return ->
             cond do
               message.serial == hello_serial ->
-                mod.handle_up(mod_state)
+                {mod.handle_up(mod_state), message_queue}
 
               true ->
                 case message_queue |> Map.pop(message.reply_serial) do
