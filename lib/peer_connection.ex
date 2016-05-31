@@ -79,7 +79,7 @@ defmodule DBux.PeerConnection do
 
             {:error, reason} ->
               Logger.warn("Unable to request name, reason = " <> inspect(reason))
-              {:reply, {:error, reason} state}
+              {:reply, {:error, reason}, state}
           end
         end
       end
