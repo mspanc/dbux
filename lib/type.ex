@@ -113,7 +113,7 @@ defmodule DBux.Type do
   def align_size(:variant),     do: 1
   def align_size(:dict_entry),  do: 8
   def align_size(:unix_fd),     do: 4
-  def align_size({subtype_major, subtype_minor}), do: align_size(subtype_major)
+  def align_size({subtype_major, _subtype_minor}), do: align_size(subtype_major)
 
 
 

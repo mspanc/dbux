@@ -256,14 +256,11 @@ defmodule DBux.ProtocolSpec do
           expect(signature).to eq "is"
         end
 
-        it "should return a bitstring that contains serialized values" do
+        it "should return a bitstring that contains serialized values with their padding" do
           {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
-          expect(bitstring).to eq <<210, 4, 0, 0, 5, 0, 0, 0, 97, 98, 99, 100, 101, 0>>
+          expect(bitstring).to eq <<210, 4, 0, 0, 5, 0, 0, 0, 97, 98, 99, 100, 101, 0, 0, 0>>
         end
       end
     end
   end
-
-
-
 end
