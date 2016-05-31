@@ -268,7 +268,7 @@ defmodule DBux.Value do
   It returns `{:ok, aligned_bitstring, added_bytes_count}`.
   """
   @spec align(Bitstring, DBux.Type.t) :: {:ok, Bitstring, number}
-  def align(bitstring, type) when is_binary(bitstring) and is_atom(type) do
+  def align(bitstring, type) when is_binary(bitstring) and (is_atom(type) or is_tuple(type)) do
     align(bitstring, DBux.Type.align_size(type))
   end
 
