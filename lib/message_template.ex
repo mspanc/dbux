@@ -1,7 +1,7 @@
 defmodule DBux.MessageTemplate do
   @moduledoc """
   This module contains helper functions that can be used to easily build
-  messages that
+  well-known messages.
   """
 
 
