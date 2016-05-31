@@ -591,14 +591,14 @@ defmodule DBux.PeerConnection do
 
   @doc false
   def handle_info(:dbux_transport_down, state) do
-    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Transport down")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: transport down")
     {:disconnect, :error, state}
   end
 
 
   @doc false
-  def handle_info({:dbux_transport_receive, bitstream}, %{state: :ready, buffer: buffer} = state) do
-    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received when ready")
+  def handle_info({:dbux_transport_receive, bitstream}, %{buffer: buffer} = state) do
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: transport receive")
 
     case parse_received_data(buffer <> bitstream, state) do
       {:ok, new_state} ->
