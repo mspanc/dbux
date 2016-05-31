@@ -653,11 +653,11 @@ defmodule DBux.PeerConnection do
             {mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
 
           :method_return ->
-            {id, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
+            {{id, _}, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
             {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}
 
           :error ->
-            {id, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
+            {{id, _}, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
             {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}
 
           :signal ->
