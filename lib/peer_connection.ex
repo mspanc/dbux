@@ -687,12 +687,22 @@ defmodule DBux.PeerConnection do
             {mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
 
           :method_return ->
-            {{id, _}, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
-            {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}
+            case message_queue |> Map.pop(message.reply_serial) do
+              {{id, _}, new_message_queue} ->
+                {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}
+
+              {nil, new_message_queue} ->
+                {mod.handle_method_return(message.serial, message.reply_serial, message.body, nil, mod_state), new_message_queue}
+            end
 
           :error ->
-            {{id, _}, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
-            {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}
+            case message_queue |> Map.pop(message.reply_serial) do
+              {{id, _}, new_message_queue} ->
+                {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}
+
+              {nil, new_message_queue} ->
+                {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, nil, mod_state), new_message_queue}
+            end
 
           :signal ->
             {mod.handle_signal(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
