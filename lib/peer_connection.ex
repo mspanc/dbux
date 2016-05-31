@@ -31,7 +31,7 @@ defmodule DBux.PeerConnection do
           Logger.info("Up")
 
           {:send, [
-            DBux.Message.build_signal("/", "org.example.dbux.MyApp.Bus", "Connected", []),
+            DBux.Message.build_signal("/", "org.example.dbux.MyApp", "Connected", []),
             {@add_match_message_id,    DBux.MessageTemplate.add_match(:signal, nil, "org.example.dbux.OtherApp")},
             {@request_name_message_id, DBux.MessageTemplate.request_name("org.example.dbux.MyApp", 0x4)}
           ], state}
@@ -59,6 +59,11 @@ defmodule DBux.PeerConnection do
 
         def handle_error(_serial, _reply_serial, error_name, _body, @add_match_message_id, state) do
           Logger.warn("Failed to add match: " <> error_name)
+          {:noreply, state}
+        end
+
+        def handle_signal(_serial, _path, _member, "org.example.dbux.OtherApp", _body, state) do
+          Logger.info("Got signal")
           {:noreply, state}
         end
       end
