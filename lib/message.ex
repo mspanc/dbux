@@ -226,9 +226,6 @@ defmodule DBux.Message do
       header_fields_bitstring
       |> DBux.Value.align(8)
 
-    IO.puts body_bitstring |> Base.encode16
-    IO.puts byte_size(body_bitstring)
-
     {:ok, message_bitstring <> body_bitstring}
   end
 
