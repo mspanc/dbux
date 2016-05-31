@@ -80,27 +80,27 @@ defmodule MyApp.Bus do
     {:backoff, 1000, state}
   end
 
-  def handle_method_return(_serial, _reply_serial, _body, @request_name_message_id, state) do
+  def handle_method_return(_serial, _sender, _reply_serial, _body, @request_name_message_id, state) do
     Logger.info("Name acquired")
     {:noreply, state}
   end
 
-  def handle_method_return(_serial, _reply_serial, _body, @add_match_message_id, state) do
+  def handle_method_return(_serial, _sender, _reply_serial, _body, @add_match_message_id, state) do
     Logger.info("Match added")
     {:noreply, state}
   end
 
-  def handle_error(_serial, _reply_serial, error_name, _body, @request_name_message_id, state) do
+  def handle_error(_serial, _sender, _reply_serial, error_name, _body, @request_name_message_id, state) do
     Logger.warn("Failed to acquire name: " <> error_name)
     {:noreply, state}
   end
 
-  def handle_error(_serial, _reply_serial, error_name, _body, @add_match_message_id, state) do
+  def handle_error(_serial, _sender, _reply_serial, error_name, _body, @add_match_message_id, state) do
     Logger.warn("Failed to add match: " <> error_name)
     {:noreply, state}
   end
 
-  def handle_signal(_serial, _path, _member, "org.example.dbux.OtherApp", _body, state) do
+  def handle_signal(_serial, _sender, _path, _member, "org.example.dbux.OtherApp", _body, state) do
     Logger.info("Got signal")
     {:noreply, state}
   end

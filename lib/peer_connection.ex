@@ -42,27 +42,27 @@ defmodule DBux.PeerConnection do
           {:backoff, 1000, state}
         end
 
-        def handle_method_return(_serial, _reply_serial, _body, @request_name_message_id, state) do
+        def handle_method_return(_serial, _sender, _reply_serial, _body, @request_name_message_id, state) do
           Logger.info("Name acquired")
           {:noreply, state}
         end
 
-        def handle_method_return(_serial, _reply_serial, _body, @add_match_message_id, state) do
+        def handle_method_return(_serial, _sender, _reply_serial, _body, @add_match_message_id, state) do
           Logger.info("Match added")
           {:noreply, state}
         end
 
-        def handle_error(_serial, _reply_serial, error_name, _body, @request_name_message_id, state) do
+        def handle_error(_serial, _sender, _reply_serial, error_name, _body, @request_name_message_id, state) do
           Logger.warn("Failed to acquire name: " <> error_name)
           {:noreply, state}
         end
 
-        def handle_error(_serial, _reply_serial, error_name, _body, @add_match_message_id, state) do
+        def handle_error(_serial, _sender, _reply_serial, error_name, _body, @add_match_message_id, state) do
           Logger.warn("Failed to add match: " <> error_name)
           {:noreply, state}
         end
 
-        def handle_signal(_serial, _path, _member, "org.example.dbux.OtherApp", _body, state) do
+        def handle_signal(_serial, _sender, _path, _member, "org.example.dbux.OtherApp", _body, state) do
           Logger.info("Got signal")
           {:noreply, state}
         end
@@ -150,7 +150,7 @@ defmodule DBux.PeerConnection do
   tuples, where `identifier` is an arbitrary identifier that will allow later
   to match response with the message.
   """
-  @callback handle_method_call(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
+  @callback handle_method_call(DBux.Serial.t, String.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
     {:noreply, any} |
     {:send, message_queue}
 
@@ -166,7 +166,7 @@ defmodule DBux.PeerConnection do
   tuples, where `identifier` is an arbitrary identifier that will allow later
   to match response with the message.
   """
-  @callback handle_method_return(DBux.Serial.t, DBux.Serial.t, DBux.Value.list_of_values, message_queue_id, any) ::
+  @callback handle_method_return(DBux.Serial.t, String.t, DBux.Serial.t, DBux.Value.list_of_values, message_queue_id, any) ::
     {:noreply, any} |
     {:send, message_queue}
 
@@ -176,7 +176,7 @@ defmodule DBux.PeerConnection do
 
   Returning `{:noreply, state}` will cause to update state with `state`.
   """
-  @callback handle_error(DBux.Serial.t, DBux.Serial.t, String.t, DBux.Value.list_of_values, message_queue_id, any) ::
+  @callback handle_error(DBux.Serial.t, String.t, DBux.Serial.t, String.t, DBux.Value.list_of_values, message_queue_id, any) ::
     {:noreply, any} |
     {:send, message_queue}
 
@@ -186,7 +186,7 @@ defmodule DBux.PeerConnection do
 
   Returning `{:noreply, state}` will cause to update state with `state`.
   """
-  @callback handle_signal(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
+  @callback handle_signal(DBux.Serial.t, String.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
     {:noreply, any} |
     {:send, message_queue}
 
@@ -227,25 +227,25 @@ defmodule DBux.PeerConnection do
 
 
       @doc false
-      def handle_method_call(_serial, _path, _member, _interface, _body, state) do
+      def handle_method_call(_serial, _sender, _path, _member, _interface, _body, state) do
         {:noreply, state}
       end
 
 
       @doc false
-      def handle_method_return(_serial, _reply_serial, _body, _queue_id, state) do
+      def handle_method_return(_serial, _sender, _reply_serial, _body, _queue_id, state) do
         {:noreply, state}
       end
 
 
       @doc false
-      def handle_error(_serial, _reply_serial, _error_name, _body, _queue_id, state) do
+      def handle_error(_serial, _sender, _reply_serial, _error_name, _body, _queue_id, state) do
         {:noreply, state}
       end
 
 
       @doc false
-      def handle_signal(_serial, _path, _member, _interface, _body, state) do
+      def handle_signal(_serial, _sender, _path, _member, _interface, _body, state) do
         {:noreply, state}
       end
 
@@ -293,10 +293,10 @@ defmodule DBux.PeerConnection do
       defoverridable [
         handle_up: 1,
         handle_down: 1,
-        handle_method_call: 6,
-        handle_method_return: 5,
-        handle_error: 6,
-        handle_signal: 6,
+        handle_method_call: 7,
+        handle_method_return: 6,
+        handle_error: 7,
+        handle_signal: 7,
         handle_call: 3,
         handle_info: 2,
         handle_cast: 2,
@@ -642,7 +642,7 @@ defmodule DBux.PeerConnection do
 
         return = case message.message_type do
           :method_call ->
-            {:ok, {mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}, state}
+            {:ok, {mod.handle_method_call(message.serial, message.sender, message.path, message.member, message.interface, message.body, mod_state), message_queue}, state}
 
           :method_return ->
             cond do
@@ -658,24 +658,24 @@ defmodule DBux.PeerConnection do
               true ->
                 case message_queue |> Map.pop(message.reply_serial) do
                   {{id, _}, new_message_queue} ->
-                    {:ok, {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}, state}
+                    {:ok, {mod.handle_method_return(message.serial, message.sender, message.reply_serial, message.body, id, mod_state), new_message_queue}, state}
 
                   {nil, new_message_queue} ->
-                    {:ok, {mod.handle_method_return(message.serial, message.reply_serial, message.body, nil, mod_state), new_message_queue}, state}
+                    {:ok, {mod.handle_method_return(message.serial, message.sender, message.reply_serial, message.body, nil, mod_state), new_message_queue}, state}
                 end
             end
 
           :error ->
             case message_queue |> Map.pop(message.reply_serial) do
               {{id, _}, new_message_queue} ->
-                {:ok, {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}, state}
+                {:ok, {mod.handle_error(message.serial, message.sender, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}, state}
 
               {nil, new_message_queue} ->
-                {:ok, {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, nil, mod_state), new_message_queue}, state}
+                {:ok, {mod.handle_error(message.serial, message.sender, message.reply_serial, message.error_name, message.body, nil, mod_state), new_message_queue}, state}
             end
 
           :signal ->
-            {:ok, {mod.handle_signal(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}, state}
+            {:ok, {mod.handle_signal(message.serial, message.sender, message.path, message.member, message.interface, message.body, mod_state), message_queue}, state}
         end
 
 
