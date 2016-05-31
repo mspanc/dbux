@@ -14,7 +14,7 @@ defmodule DBux.Transport.TCP do
 
   def start_link(parent, options) do
     if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Start link")
-    Connection.start_link(__MODULE__, {parent, options})
+    PeerConnection.start_link(__MODULE__, {parent, options})
   end
 
 
@@ -33,7 +33,7 @@ defmodule DBux.Transport.TCP do
         {:ok, %{state | sock: sock, state: :handshake}}
 
       {:error, reason} ->
-        Logger.warn("[DBux.Connection #{inspect(self())}] Connect: Failed to connect to #{host}:#{port}: #{inspect(reason)}")
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Connect: Failed to connect to #{host}:#{port}: #{inspect(reason)}")
         {:backoff, @reconnect_timeout, %{state | sock: nil, state: :handshake}}
     end
   end
@@ -48,19 +48,19 @@ defmodule DBux.Transport.TCP do
 
   def do_connect(transport_proc) do
     if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do connect: #{inspect(transport_proc)}")
-    Connection.call(transport_proc, :connect)
+    PeerConnection.call(transport_proc, :connect)
   end
 
 
   def do_send(transport_proc, data) when is_binary(data) do
     if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do send: #{inspect(transport_proc)}")
-    Connection.call(transport_proc, {:send, data})
+    PeerConnection.call(transport_proc, {:send, data})
   end
 
 
   def do_begin(transport_proc) do
     if @debug, do: Logger.debug("[DBux.Transport.TCP #{inspect(self())}] Do begin: #{inspect(transport_proc)}")
-    Connection.call(transport_proc, :begin)
+    PeerConnection.call(transport_proc, :begin)
   end
 
 
@@ -111,7 +111,7 @@ defmodule DBux.Transport.TCP do
         {:reply, :ok, state}
 
       {:error, reason} ->
-        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send data: #{inspect(reason)}")
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send data: #{inspect(reason)}")
         {:reply, {:error, reason}, state}
     end
   end
@@ -142,7 +142,7 @@ defmodule DBux.Transport.TCP do
         {:reply, :ok, %{state | state: :ready}}
 
       {:error, reason} ->
-        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to begin: #{inspect(reason)}")
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to begin: #{inspect(reason)}")
         {:reply, {:error, reason}, state}
     end
   end
@@ -154,7 +154,7 @@ defmodule DBux.Transport.TCP do
   It returns `{:disconnect, {:error, :tcp_closed}, state}`.
   """
   def handle_info({:tcp_closed, _}, %{parent: parent} = state) do
-    Logger.warn "[DBux.Connection #{inspect(self())}] TCP connection closed"
+    Logger.warn "[DBux.PeerConnection #{inspect(self())}] TCP connection closed"
     send(parent, :dbux_transport_down)
     {:disconnect, {:error, :tcp_closed}, state}
   end
@@ -167,7 +167,7 @@ defmodule DBux.Transport.TCP do
   It alters state with `state: :authenticated`.
   """
   def handle_info({:tcp, _sock, "OK " <> _}, %{state: :handshake, parent: parent} = state) do
-    if @debug, do: Logger.debug "[DBux.Connection #{inspect(self())}] Authentication succeeded"
+    if @debug, do: Logger.debug "[DBux.PeerConnection #{inspect(self())}] Authentication succeeded"
     # TODO send TCP to non-line mode
     send(parent, :dbux_authentication_succeeded)
     {:noreply, %{state | state: :authenticated}}
@@ -181,7 +181,7 @@ defmodule DBux.Transport.TCP do
   It always causes disconnect and alters state with `state: :init`.
   """
   def handle_info({:tcp, _sock, "ERROR " <> reason}, %{state: :handshake, parent: parent} = state) do
-    Logger.warn "[DBux.Connection #{inspect(self())}] Authentication error: #{reason}"
+    Logger.warn "[DBux.PeerConnection #{inspect(self())}] Authentication error: #{reason}"
     send(parent, :dbux_authentication_error)
     {:disconnect, {:error, :dbux_authentication_error}, state}
   end
@@ -194,7 +194,7 @@ defmodule DBux.Transport.TCP do
   It always causes disconnect and alters state with `state: :handshake`.
   """
   def handle_info({:tcp, _sock, "REJECTED " <> _, reason}, %{state: :handshake, parent: parent} = state) do
-    Logger.warn "[DBux.Connection #{inspect(self())}] Authentication failed: #{reason}"
+    Logger.warn "[DBux.PeerConnection #{inspect(self())}] Authentication failed: #{reason}"
     send(parent, :dbux_authentication_failed)
     {:disconnect, {:error, :dbux_authentication_failed}, state}
   end
@@ -206,7 +206,7 @@ defmodule DBux.Transport.TCP do
   It returns `{:disconnect, {:error, :tcp_error}, state}`.
   """
   def handle_info({:tcp, _, data}, %{state: :ready, parent: parent} = state) do
-    if @debug, do: Logger.debug "[DBux.Connection #{inspect(self())}] TCP read: #{inspect(data)}"
+    if @debug, do: Logger.debug "[DBux.PeerConnection #{inspect(self())}] TCP read: #{inspect(data)}"
     send(parent, {:dbux_transport_receive, data})
     {:noreply, state}
   end

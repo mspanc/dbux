@@ -1,4 +1,4 @@
-defmodule DBux.Connection do
+defmodule DBux.PeerConnection do
   @moduledoc """
   This module handles connection to the another D-Bus peer.
 
@@ -8,14 +8,14 @@ defmodule DBux.Connection do
   Its interface is intentionally quite low-level. You probably won't be able to
   use it properly without understanding how D-Bus protocol works.
 
-  An example `DBux.Connection` process:
+  An example `DBux.PeerConnection` process:
 
       defmodule MyApp.Bus do
         require Logger
-        use DBux.Connection
+        use DBux.PeerConnection
 
-        def start_link(options \\ []) do
-          DBux.Connection.start_link(__MODULE__, "myserver.example.com")
+        def start_link(hostname, options \\ []) do
+          DBux.PeerConnection.start_link(__MODULE__, hostname, options)
         end
 
         def init(hostname) do
@@ -25,7 +25,7 @@ defmodule DBux.Connection do
         end
 
         def request_name(proc) do
-          DBux.Connection.call(proc, :request_name)
+          DBux.PeerConnection.call(proc, :request_name)
         end
 
         @doc false
@@ -66,7 +66,7 @@ defmodule DBux.Connection do
 
         @doc false
         def handle_call(:request_name, state) do
-          case DBux.Connection.do_method_call(self(),
+          case DBux.PeerConnection.do_method_call(self(),
             "/org/freedesktop/DBus",
             "org.freedesktop.DBus",
             "Hello", [
@@ -88,7 +88,7 @@ defmodule DBux.Connection do
 
       defmodule MyApp.Core do
         def do_the_stuff do
-          {:ok, connection} = MyApp.Bus.start_link
+          {:ok, connection} = MyApp.Bus.start_link("myserver.example.com")
           {:ok, serial} = MyApp.Bus.request_name(connection)
         end
       end
@@ -104,7 +104,7 @@ defmodule DBux.Connection do
   @debug !is_nil(System.get_env("DBUX_DEBUG"))
 
   @doc """
-  Called when Connection process is first started. `start_link/1` will block
+  Called when PeerConnection process is first started. `start_link/1` will block
   until it returns.
 
   The first argument will be the same as `mod_options` passed to `start_link/3`.
@@ -166,7 +166,7 @@ defmodule DBux.Connection do
 
   defmacro __using__(_) do
     quote location: :keep do
-      @behaviour DBux.Connection
+      @behaviour DBux.PeerConnection
 
       # Default implementations
 
@@ -227,9 +227,9 @@ defmodule DBux.Connection do
   """
   @spec start_link(module, any, list) :: GenServer.on_start
   def start_link(mod, mod_options \\ nil, proc_options \\ []) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Start link: mod_options = #{inspect(mod_options)}, proc_options = #{inspect(proc_options)}")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Start link: mod_options = #{inspect(mod_options)}, proc_options = #{inspect(proc_options)}")
 
-    Connection.start_link(__MODULE__, {mod, mod_options}, proc_options)
+    PeerConnection.start_link(__MODULE__, {mod, mod_options}, proc_options)
   end
 
 
@@ -243,9 +243,9 @@ defmodule DBux.Connection do
 
   It is a synchronous call.
   """
-  @spec send_method_call(pid, String.t, String.t, DBux.Value.list_of_values, String.t | nil) :: {:ok, DBux.Serial.t} | {:error, any}
+  @spec send_method_call(GenServer.server, String.t, String.t, DBux.Value.list_of_values, String.t | nil) :: {:ok, DBux.Serial.t} | {:error, any}
   def send_method_call(bus, path, interface, member, body \\ [], destination \\ nil) when is_binary(path) and is_binary(interface) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
-    DBux.Connection.call(bus, {:dbux_send_message, DBux.Message.build_method_call(0, path, interface, member, body, destination)})
+    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_method_call(0, path, interface, member, body, destination)})
   end
 
 
@@ -259,9 +259,9 @@ defmodule DBux.Connection do
 
   It is a synchronous call.
   """
-  @spec send_signal(pid, String.t, String.t, String.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
+  @spec send_signal(GenServer.server, String.t, String.t, String.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
   def send_signal(bus, path, interface, member, body \\ []) when is_binary(path) and is_binary(interface) and is_list(body) do
-    DBux.Connection.call(bus, {:dbux_send_message, DBux.Message.build_signal(0, path, interface, member, body)})
+    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_signal(0, path, interface, member, body)})
   end
 
 
@@ -275,9 +275,9 @@ defmodule DBux.Connection do
 
   It is a synchronous call.
   """
-  @spec send_method_return(pid, DBux.Serial.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
+  @spec send_method_return(GenServer.server, DBux.Serial.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
   def send_method_return(bus, reply_serial, body \\ []) when is_number(reply_serial) and is_list(body) do
-    DBux.Connection.call(bus, {:dbux_send_message, DBux.Message.build_method_return(0, reply_serial, body)})
+    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_method_return(0, reply_serial, body)})
   end
 
 
@@ -291,15 +291,21 @@ defmodule DBux.Connection do
 
   It is a synchronous call.
   """
-  @spec send_error(pid, DBux.Serial.t, String.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
+  @spec send_error(GenServer.server, DBux.Serial.t, String.t, DBux.Value.list_of_values) :: {:ok, DBux.Serial.t} | {:error, any}
   def send_error(bus, reply_serial, error_name, body \\ []) when is_number(reply_serial) and is_binary(error_name) and is_list(body) do
-    DBux.Connection.call(bus, {:dbux_send_message, DBux.Message.build_error(0, reply_serial, error_name, body)})
+    DBux.PeerConnection.call(bus, {:dbux_send_message, DBux.Message.build_error(0, reply_serial, error_name, body)})
   end
+
+
+  defdelegate call(bus, req),          to: Connection
+  defdelegate call(bus, req, timeout), to: Connection
+  defdelegate cast(bus, req),          to: Connection
+  defdelegate reply(from, response),   to: Connection
 
 
   @doc false
   def init({mod, mod_options}) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Init, mod = #{inspect(mod)}, mod_options = #{inspect(mod_options)}")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Init, mod = #{inspect(mod)}, mod_options = #{inspect(mod_options)}")
 
     {:ok, address, auth_mechanisms, mod_state} = mod.init(mod_options)
     {:ok, {transport_mod, transport_opts}} = DBux.Transport.get_module_for_address(address)
@@ -330,22 +336,22 @@ defmodule DBux.Connection do
 
   @doc false
   def connect(_, %{transport_mod: transport_mod, transport_proc: transport_proc, auth_mod: auth_mod, auth_proc: auth_proc} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Connecting")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Connecting")
     case transport_mod.do_connect(transport_proc) do
       :ok ->
-        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Authenticating")
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Authenticating")
         case auth_mod.do_handshake(auth_proc, transport_mod, transport_proc) do
           :ok ->
-            if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Sent authentication request")
+            if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Sent authentication request")
             {:ok, %{state | state: :authenticating}}
 
           {:error, _} ->
-            Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send authentication request")
+            Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send authentication request")
             {:backoff, @reconnect_timeout, %{state | state: :init}}
         end
 
       {:error, _} ->
-        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Failed to connect")
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Failed to connect")
         {:backoff, @reconnect_timeout, %{state | state: :init}}
     end
   end
@@ -353,20 +359,20 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_call({:dbux_send_message, _message}, _sender, %{state: :init} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send method call when not authenticated")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle call: send method call when not authenticated")
     {:reply, {:error, :not_authenticated}, state}
   end
 
 
   @doc false
   def handle_call({:dbux_send_message, message}, _sender, state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle call: send message when authenticated: message = #{inspect(message)}")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle call: send message when authenticated: message = #{inspect(message)}")
     case send_message(message, state) do
       {:ok, serial} ->
         {:reply, {:ok, serial}, state}
 
       {:error, reason} ->
-        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send method call: #{inspect(reason)}")
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send method call: #{inspect(reason)}")
         {:reply, {:error, reason}, state}
     end
   end
@@ -374,25 +380,25 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_info(:dbux_authentication_succeeded, %{state: :authenticating, transport_mod: transport_mod, transport_proc: transport_proc} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication succeeded")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: authentication succeeded")
 
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Beginning message transmission")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Beginning message transmission")
     case transport_mod.do_begin(transport_proc) do
       :ok ->
-        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Began message transmission")
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Began message transmission")
 
-        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Sending Hello")
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Sending Hello")
         case send_message(DBux.Message.build_method_call(0, "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus"), state) do
           {:ok, serial} ->
             {:noreply, %{state | state: :authenticated, hello_serial: serial}}
 
           {:error, reason} ->
-            Logger.warn("[DBux.Connection #{inspect(self())}] Failed to send Hello: #{inspect(reason)}")
+            Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send Hello: #{inspect(reason)}")
             {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
         end
 
       {:error, reason} ->
-        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to begin message transmission: #{inspect(reason)}")
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to begin message transmission: #{inspect(reason)}")
         {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
     end
   end
@@ -400,36 +406,36 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_info(:dbux_authentication_failed, %{state: :authenticating} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication failed")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: authentication failed")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info(:dbux_authentication_error, %{state: :authenticating} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: authentication error")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: authentication error")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info(:dbux_transport_down, state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Transport down")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Transport down")
     {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
   end
 
 
   @doc false
   def handle_info({:dbux_transport_receive, bitstream}, %{mod: mod, mod_state: mod_state, state: :authenticated, hello_serial: hello_serial, buffer: buffer, unwrap_values: unwrap_values} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when authenticated")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received when authenticated")
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
-        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message #{inspect(message)}")
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received message #{inspect(message)}")
         cond do
           message.reply_serial == hello_serial ->
             unique_name = hd(message.body)
-            if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Got unique name #{unique_name}")
+            if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Got unique name #{unique_name}")
 
             case mod.handle_up(mod_state) do
               {:noreply, new_mod_state} ->
@@ -437,7 +443,7 @@ defmodule DBux.Connection do
             end
 
           true ->
-            Logger.warn("[DBux.Connection #{inspect(self())}] Got unknown reply #{inspect(message)}")
+            Logger.warn("[DBux.PeerConnection #{inspect(self())}] Got unknown reply #{inspect(message)}")
             {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
         end
 
@@ -445,7 +451,7 @@ defmodule DBux.Connection do
         {:noreply, %{state | buffer: buffer <> bitstream}}
 
       {:error, reason} ->
-        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
         {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
     end
   end
@@ -453,11 +459,11 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_info({:dbux_transport_receive, bitstream}, %{mod: mod, mod_state: mod_state, state: :ready, buffer: buffer, unwrap_values: unwrap_values} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received when ready")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received when ready")
 
     case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
       {:ok, {message, rest}} ->
-        if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Received message = #{inspect(message)}")
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received message = #{inspect(message)}")
 
         callback_return = case message.message_type do
           :method_call ->
@@ -482,7 +488,7 @@ defmodule DBux.Connection do
         {:noreply, %{state | buffer: buffer <> bitstream}}
 
       {:error, reason} ->
-        Logger.warn("[DBux.Connection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
         {:noreply, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}} # FIXME terminate, disconnect transport
     end
   end
@@ -490,7 +496,7 @@ defmodule DBux.Connection do
 
   @doc false
   def handle_info(info, %{mod: mod, mod_state: mod_state} = state) do
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Handle info: Generic, info = #{inspect(info)}")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Generic, info = #{inspect(info)}")
     case mod.handle_info(info, mod_state) do
       {:noreply, new_mod_state} ->
         {:noreply, %{state | mod_state: new_mod_state}}
@@ -514,7 +520,7 @@ defmodule DBux.Connection do
     serial = DBux.Serial.retreive(serial_proc)
     message_with_serial = Map.put(message, :serial, serial)
 
-    if @debug, do: Logger.debug("[DBux.Connection #{inspect(self())}] Sending message: #{inspect(message_with_serial)}")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Sending message: #{inspect(message_with_serial)}")
     {:ok, message_bitstring} = message_with_serial |> DBux.Message.marshall
 
     case transport_mod.do_send(transport_proc, message_bitstring) do

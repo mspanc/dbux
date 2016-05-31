@@ -8,7 +8,7 @@ defmodule DBux.Auth.Anonymous do
 
   def start_link(_parent, options) do
     if @debug, do: Logger.debug("[DBux.Auth.Anonymous #{inspect(self())}] Start link")
-    Connection.start_link(__MODULE__, options)
+    PeerConnection.start_link(__MODULE__, options)
   end
 
 
