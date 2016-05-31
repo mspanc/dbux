@@ -18,9 +18,28 @@ built on top of DBux).
 At the beginning it's going to provide only functionality needed to act as
 a client. Acting as a server may be added later.
 
+## Versioning
+
+Project follows [Semantic Versioning](http://semver.org/).
+
 ## Status
 
-Project in production use in at least one big app :)
+Project in production use in at least one big app :) However, some things are
+still not implemented:
+
+* Marshalling variants that contain container types
+* Handling message timeouts
+* Handling introspection calls and other generic D-Bus methods
+
+# Installation
+
+Add dependency to your `mix.exs`:
+
+```elixir
+defp deps do
+  [{:dbux, "~> 1.0.0"}]
+end
+```
 
 # Sample Usage
 
@@ -29,74 +48,57 @@ An example `DBux.Connection` process:
 ```elixir
 defmodule MyApp.Bus do
   require Logger
-  use DBux.Connection
+  use DBux.PeerConnection
 
-  def start_link(options \\ []) do
-    DBux.Connection.start_link(__MODULE__, "myserver.example.com")
+  @dbus_name "org.example.dbux"
+
+  @request_name_message_id "request_name"
+  @add_match_message_id    "add_match"
+
+
+  def start_link(hostname, options \\ []) do
+    DBux.PeerConnection.start_link(__MODULE__, hostname, options)
   end
 
   def init(hostname) do
-    Logger.debug("Init, hostname = #{hostname}")
-    initial_state = %{request_name_serial: nil}
-    {:ok, "tcp:host=#{hostname},port=8888", [:anonymous], initial_state}
+    initial_state = %{hostname: hostname}
+
+    {:ok, "tcp:host=" <> hostname <> ",port=8888", [:anonymous], initial_state}
   end
 
-  def request_name(proc) do
-    DBux.Connection.call(proc, :request_name)
-  end
-
-  @doc false
   def handle_up(state) do
     Logger.info("Up")
-    {:noreply, state}
+
+    {:send, [
+      DBux.Message.build_signal("/", "org.example.dbux.MyApp.Bus", "Connected", []),
+      {@add_match_message_id,    DBux.MessageTemplate.add_match(:signal, nil, "org.example.dbux.OtherApp")},
+      {@request_name_message_id, DBux.MessageTemplate.request_name(@dbus_name, 0x4)}
+    ], state}
   end
 
-  @doc false
   def handle_down(state) do
     Logger.warn("Down")
     {:noreply, state}
   end
 
-  @doc false
-  def handle_method_return(_serial, reply_serial, _body, %{request_name_serial: request_name_serial} = state) do
-    cond do
-      reply_serial == request_name_serial ->
-        Logger.info("Name acquired")
-        {:noreply, %{state | request_name_serial: nil}}
-
-      true ->
-        {:noreply, state}
-    end
+  def handle_method_return(_serial, _reply_serial, _body, @request_name_message_id, state) do
+    Logger.info("Name acquired")
+    {:noreply, state}
   end
 
-  @doc false
-  def handle_error(_serial, reply_serial, error_name, _body, %{request_name_serial: request_name_serial} = state) do
-    cond do
-      reply_serial == request_name_serial ->
-        Logger.warn("Failed te acquire name: #{error_name}")
-        {:noreply, %{state | request_name_serial: nil}}
-
-      true ->
-        {:noreply, state}
-    end
+  def handle_method_return(_serial, _reply_serial, _body, @add_match_message_id, state) do
+    Logger.info("Match added")
+    {:noreply, state}
   end
 
-  @doc false
-  def handle_call(:request_name, state) do
-    case DBux.Connection.do_method_call(self(),
-      "/org/freedesktop/DBus",
-      "org.freedesktop.DBus",
-      "RequestName",
-      [ %DBux.Value{type: :string, value: "com.example.dbux"},
-        %DBux.Value{type: :uint32, value: 0} ],
-      "org.freedesktop.DBus") do
-      {:ok, serial} ->
-        {:reply, :ok, %{state | request_name_serial: serial}}
+  def handle_error(_serial, _reply_serial, error_name, _body, @request_name_message_id, state) do
+    Logger.warn("Failed to acquire name: " <> error_name)
+    {:noreply, state}
+  end
 
-      {:error, reason} ->
-        Logger.warn("Unable to request name, reason = #{inspect(reason)}")
-        {:reply, {:error, reason} state}
-    end
+  def handle_error(_serial, _reply_serial, error_name, _body, @add_match_message_id, state) do
+    Logger.warn("Failed to add match: " <> error_name)
+    {:noreply, state}
   end
 end
 ```
@@ -106,8 +108,7 @@ And of the accompanying process that can control the connection:
 ```elixir
 defmodule MyApp.Core do
   def do_the_stuff do
-    {:ok, connection} = MyApp.Bus.start_link
-    {:ok, serial} = MyApp.Bus.request_name(connection)
+    {:ok, connection} = MyApp.Bus.start_link("dbusserver.example.com")
   end
 end
 ```

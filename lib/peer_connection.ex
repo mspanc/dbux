@@ -14,23 +14,30 @@ defmodule DBux.PeerConnection do
         require Logger
         use DBux.PeerConnection
 
+        @dbus_name "org.example.dbux"
+
+        @request_name_message_id "request_name"
+        @add_match_message_id    "add_match"
+
+
         def start_link(hostname, options \\ []) do
           DBux.PeerConnection.start_link(__MODULE__, hostname, options)
         end
 
         def init(hostname) do
-          Logger.debug("Init")
-          initial_state = %{request_name_serial: nil}
-          {:ok, "tcp:host=" <> hostname <> ",port=8888", [:anonymous], initial_state}
-        end
+          initial_state = %{hostname: hostname}
 
-        def request_name(proc) do
-          DBux.PeerConnection.call(proc, :request_name)
+          {:ok, "tcp:host=" <> hostname <> ",port=8888", [:anonymous], initial_state}
         end
 
         def handle_up(state) do
           Logger.info("Up")
-          {:noreply, state}
+
+          {:send, [
+            DBux.Message.build_signal("/", "org.example.dbux.MyApp.Bus", "Connected", []),
+            {@add_match_message_id,    DBux.MessageTemplate.add_match(:signal, nil, "org.example.dbux.OtherApp")},
+            {@request_name_message_id, DBux.MessageTemplate.request_name(@dbus_name, 0x4)}
+          ], state}
         end
 
         def handle_down(state) do
@@ -38,44 +45,24 @@ defmodule DBux.PeerConnection do
           {:noreply, state}
         end
 
-        def handle_method_return(_serial, reply_serial, _body, %{request_name_serial: request_name_serial} = state) do
-          cond do
-            reply_serial == request_name_serial ->
-              Logger.info("Name acquired")
-              {:noreply, %{state | request_name_serial: nil}}
-
-            true ->
-              {:noreply, state}
-          end
+        def handle_method_return(_serial, _reply_serial, _body, @request_name_message_id, state) do
+          Logger.info("Name acquired")
+          {:noreply, state}
         end
 
-        def handle_error(_serial, reply_serial, error_name, _body, %{request_name_serial: request_name_serial} = state) do
-          cond do
-            reply_serial == request_name_serial ->
-              Logger.warn("Failed to acquire name: " <> error_name)
-              {:noreply, %{state | request_name_serial: nil}}
-
-            true ->
-              {:noreply, state}
-          end
+        def handle_method_return(_serial, _reply_serial, _body, @add_match_message_id, state) do
+          Logger.info("Match added")
+          {:noreply, state}
         end
 
-        def handle_call(:request_name, _sender, state) do
-          case DBux.PeerConnection.send_method_call(self(),
-            "/org/freedesktop/DBus",
-            "org.freedesktop.DBus",
-            "RequestName", [
-              %DBux.Value{type: :string, value: "com.example.dbux"},
-              %DBux.Value{type: :uint32, value: 0}
-            ],
-            "org.freedesktop.DBus") do
-            {:ok, serial} ->
-              {:reply, :ok, %{state | request_name_serial: serial}}
+        def handle_error(_serial, _reply_serial, error_name, _body, @request_name_message_id, state) do
+          Logger.warn("Failed to acquire name: " <> error_name)
+          {:noreply, state}
+        end
 
-            {:error, reason} ->
-              Logger.warn("Unable to request name, reason = " <> inspect(reason))
-              {:reply, {:error, reason}, state}
-          end
+        def handle_error(_serial, _reply_serial, error_name, _body, @add_match_message_id, state) do
+          Logger.warn("Failed to add match: " <> error_name)
+          {:noreply, state}
         end
       end
 
@@ -83,8 +70,7 @@ defmodule DBux.PeerConnection do
 
       defmodule MyApp.Core do
         def do_the_stuff do
-          {:ok, connection} = MyApp.Bus.start_link("myserver.example.com")
-          {:ok, serial} = MyApp.Bus.request_name(connection)
+          {:ok, connection} = MyApp.Bus.start_link("dbusserver.example.com")
         end
       end
 
