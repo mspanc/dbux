@@ -28,19 +28,16 @@ defmodule DBux.PeerConnection do
           DBux.PeerConnection.call(proc, :request_name)
         end
 
-        @doc false
         def handle_up(state) do
           Logger.info("Up")
           {:noreply, state}
         end
 
-        @doc false
         def handle_down(state) do
           Logger.warn("Down")
           {:noreply, state}
         end
 
-        @doc false
         def handle_method_return(_serial, reply_serial, _body, %{request_name_serial: request_name_serial} = state) do
           cond do
             reply_serial == request_name_serial ->
@@ -52,7 +49,6 @@ defmodule DBux.PeerConnection do
           end
         end
 
-        @doc false
         def handle_error(_serial, reply_serial, error_name, _body, %{request_name_serial: request_name_serial} = state) do
           cond do
             reply_serial == request_name_serial ->
@@ -64,12 +60,11 @@ defmodule DBux.PeerConnection do
           end
         end
 
-        @doc false
         def handle_call(:request_name, _sender, state) do
           case DBux.PeerConnection.send_method_call(self(),
             "/org/freedesktop/DBus",
             "org.freedesktop.DBus",
-            "Hello", [
+            "RequestName", [
               %DBux.Value{type: :string, value: "com.example.dbux"},
               %DBux.Value{type: :uint32, value: 0}
             ],
@@ -101,7 +96,11 @@ defmodule DBux.PeerConnection do
   @connect_timeout 5000
   @reconnect_timeout 5000
 
+  @type message_queue_id :: String.t
+  @type message_queue :: [] | [%DBux.Message{} | {message_queue_id, %DBux.Message{}}]
+
   @debug !is_nil(System.get_env("DBUX_DEBUG"))
+
 
   @doc """
   Called when PeerConnection process is first started. `start_link/1` will block
@@ -115,45 +114,79 @@ defmodule DBux.PeerConnection do
   @callback init(any) ::
     {:ok, String.t, [any], any}
 
+
   @doc """
   Called when connection is ready.
 
   Returning `{:noreply, state}` will cause to update state with `state`.
+
+  Returning `{:send, list_of_messages, state}` will cause to update state with
+  `state` and send messages passed as the second element of the tuple. The list
+  can just contain `DBux.Message` structs or `{identifier, %DBux.Message{}}`
+  tuples, where `identifier` is an arbitrary identifier that will allow later
+  to match response with the message.
   """
   @callback handle_up(any) ::
-    {:noreply, any}
+    {:noreply, any} |
+    {:send, message_queue}
+
 
   @doc """
   Called when connection is lost.
 
   Returning `{:noreply, state}` will cause to update state with `state`.
+
+  Returning `{:send, list_of_messages, state}` will cause to update state with
+  `state` and send messages passed as the second element of the tuple. The list
+  can just contain `DBux.Message` structs or `{identifier, %DBux.Message{}}`
+  tuples, where `identifier` is an arbitrary identifier that will allow later
+  to match response with the message.
   """
   @callback handle_down(any) ::
     {:noreply, any}
+
 
   @doc """
   Called when we receive a method call.
 
   Returning `{:noreply, state}` will cause to update state with `state`.
+
+  Returning `{:send, list_of_messages, state}` will cause to update state with
+  `state` and send messages passed as the second element of the tuple. The list
+  can just contain `DBux.Message` structs or `{identifier, %DBux.Message{}}`
+  tuples, where `identifier` is an arbitrary identifier that will allow later
+  to match response with the message.
   """
   @callback handle_method_call(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
-    {:noreply, any}
+    {:noreply, any} |
+    {:send, message_queue}
+
 
   @doc """
   Called when we receive a method return.
 
   Returning `{:noreply, state}` will cause to update state with `state`.
+
+  Returning `{:send, list_of_messages, state}` will cause to update state with
+  `state` and send messages passed as the second element of the tuple. The list
+  can just contain `DBux.Message` structs or `{identifier, %DBux.Message{}}`
+  tuples, where `identifier` is an arbitrary identifier that will allow later
+  to match response with the message.
   """
-  @callback handle_method_return(DBux.Serial.t, DBux.Serial.t, DBux.Value.list_of_values, any) ::
-    {:noreply, any}
+  @callback handle_method_return(DBux.Serial.t, DBux.Serial.t, DBux.Value.list_of_values, message_queue_id, any) ::
+    {:noreply, any} |
+    {:send, message_queue}
+
 
   @doc """
   Called when we receive an error.
 
   Returning `{:noreply, state}` will cause to update state with `state`.
   """
-  @callback handle_error(DBux.Serial.t, DBux.Serial.t, String.t, DBux.Value.list_of_values, any) ::
-    {:noreply, any}
+  @callback handle_error(DBux.Serial.t, DBux.Serial.t, String.t, DBux.Value.list_of_values, message_queue_id, any) ::
+    {:noreply, any} |
+    {:send, message_queue}
+
 
   @doc """
   Called when we receive a signal.
@@ -161,7 +194,9 @@ defmodule DBux.PeerConnection do
   Returning `{:noreply, state}` will cause to update state with `state`.
   """
   @callback handle_signal(DBux.Serial.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
-    {:noreply, any}
+    {:noreply, any} |
+    {:send, message_queue}
+
 
   @doc """
   Called when we receive a call.
@@ -205,13 +240,13 @@ defmodule DBux.PeerConnection do
 
 
       @doc false
-      def handle_method_return(_serial, _reply_serial, _body, state) do
+      def handle_method_return(_serial, _reply_serial, _body, _queue_id, state) do
         {:noreply, state}
       end
 
 
       @doc false
-      def handle_error(_serial, _reply_serial, _error_name, _body, state) do
+      def handle_error(_serial, _reply_serial, _error_name, _body, _queue_id, state) do
         {:noreply, state}
       end
 
@@ -266,8 +301,8 @@ defmodule DBux.PeerConnection do
         handle_up: 1,
         handle_down: 1,
         handle_method_call: 6,
-        handle_method_return: 4,
-        handle_error: 5,
+        handle_method_return: 5,
+        handle_error: 6,
         handle_signal: 6,
         handle_call: 3,
         handle_info: 2,
@@ -297,6 +332,22 @@ defmodule DBux.PeerConnection do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Start link: mod_options = #{inspect(mod_options)}, proc_options = #{inspect(proc_options)}")
 
     Connection.start_link(__MODULE__, {mod, mod_options}, proc_options)
+  end
+
+
+  @doc """
+  Sends DBux.Message.
+
+  Returns `{:ok, serial}` on success.
+
+  Returns `{:error, reason}` otherwise. Please note that error does not mean
+  error reply over D-Bus, but internal application error.
+
+  It is a synchronous call.
+  """
+  @spec send_message(GenServer.server, %DBux.Message{}) :: {:ok, DBux.Serial.t} | {:error, any}
+  def send_message(bus, message) when is_map(message) do
+    DBux.PeerConnection.call(bus, {:dbux_send_message, message})
   end
 
 
@@ -471,7 +522,7 @@ defmodule DBux.PeerConnection do
   @doc false
   def handle_call({:dbux_send_message, message}, _sender, state) do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle call: send message when authenticated: message = #{inspect(message)}")
-    case send_message(message, state) do
+    case do_send_message(message, state) do
       {:ok, serial} ->
         {:reply, {:ok, serial}, state}
 
@@ -507,7 +558,7 @@ defmodule DBux.PeerConnection do
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Began message transmission")
 
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Sending Hello")
-        case send_message(DBux.Message.build_method_call(0, "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus"), state) do
+        case send_message(DBux.MessageTemplate.hello(0), state) do
           {:ok, serial} ->
             {:noreply, %{state | state: :authenticated, hello_serial: serial}}
 
@@ -635,7 +686,7 @@ defmodule DBux.PeerConnection do
   end
 
 
-  defp send_message(%DBux.Message{} = message, %{transport_mod: transport_mod, transport_proc: transport_proc, serial_proc: serial_proc}) do
+  defp do_send_message(%DBux.Message{} = message, %{transport_mod: transport_mod, transport_proc: transport_proc, serial_proc: serial_proc}) do
     serial = DBux.Serial.retreive(serial_proc)
     message_with_serial = Map.put(message, :serial, serial)
 
