@@ -229,7 +229,7 @@ defmodule DBux.PeerConnection do
   def start_link(mod, mod_options \\ nil, proc_options \\ []) do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Start link: mod_options = #{inspect(mod_options)}, proc_options = #{inspect(proc_options)}")
 
-    PeerConnection.start_link(__MODULE__, {mod, mod_options}, proc_options)
+    Connection.start_link(__MODULE__, {mod, mod_options}, proc_options)
   end
 
 
