@@ -244,7 +244,7 @@ defmodule DBux.Value do
 
     if @debug, do: debug("Marshalling struct: subtype = #{inspect(subtype)}, value = #{inspect(value)}", 0)
 
-    {body_bitstring, last_element_padding, _} = Enum.reduce(value, {<< >>, 0, 0}, fn(element, acc) ->
+    {body_bitstring, _, _} = Enum.reduce(value, {<< >>, 0, 0}, fn(element, acc) ->
       {acc_bitstring, _, acc_index} = acc
       if Enum.at(subtype, acc_index) != element.type, do: throw {:badarg, :value, :signature_and_value_type_mismatch}
 
@@ -755,7 +755,7 @@ defmodule DBux.Value do
   # Computes padding size for container types.
   # It just takes container type, and ignores inner type.
   defp compute_padding_size(length, type) when is_tuple(type) do
-    {subtype_major, subtype_minor} = type
+    {subtype_major, _} = type
     compute_padding_size(length, subtype_major)
   end
 
@@ -773,7 +773,7 @@ defmodule DBux.Value do
 
 
   defp override_type({:ok, {value, rest}}, type) when is_map(value), do: {:ok, {%{value | type: type}, rest}}
-  defp override_type({:ok, {value, rest}}, type), do: {:ok, {value, rest}}
+  defp override_type({:ok, {value, rest}}, _type), do: {:ok, {value, rest}}
   defp override_type({:error, reason}, _type), do: {:error, reason}
 
 
