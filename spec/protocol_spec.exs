@@ -242,23 +242,46 @@ defmodule DBux.ProtocolSpec do
 
     context "if passed list of values is non-empty" do
       context "and it contains only simple types" do
-        let :values, do: [
-          %DBux.Value{type: :int32, value: 1234},
-          %DBux.Value{type: :string, value: "abcde"}
-        ]
+        context "and one thay may need a padding is naturally aligned" do
+          let :values, do: [
+            %DBux.Value{type: :int32, value: 1234},
+            %DBux.Value{type: :string, value: "abcde"}
+          ]
 
-        it "should return ok result" do
-          expect(described_module.marshall_bitstring(values, endianness)).to be_ok_result
+          it "should return ok result" do
+            expect(described_module.marshall_bitstring(values, endianness)).to be_ok_result
+          end
+
+          it "should return a signature that matches the types" do
+            {:ok, {_bitstring, signature}} = described_module.marshall_bitstring(values, endianness)
+            expect(signature).to eq "is"
+          end
+
+          it "should return a bitstring that contains serialized values without any padding" do
+            {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
+            expect(bitstring).to eq <<210, 4, 0, 0, 5, 0, 0, 0, 97, 98, 99, 100, 101, 0>>
+          end
         end
 
-        it "should return a signature that matches the types" do
-          {:ok, {_bitstring, signature}} = described_module.marshall_bitstring(values, endianness)
-          expect(signature).to eq "is"
-        end
+        context "and one thay may need a padding is not aligned" do
+          let :values, do: [
+            %DBux.Value{type: :string, value: "abcde"},
+            %DBux.Value{type: :int32, value: 1234} # needs align of 4, previous string is 5 + 1
+          ]
 
-        it "should return a bitstring that contains serialized values with their padding" do
-          {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
-          expect(bitstring).to eq <<210, 4, 0, 0, 5, 0, 0, 0, 97, 98, 99, 100, 101, 0, 0, 0>>
+          it "should return ok result" do
+            expect(described_module.marshall_bitstring(values, endianness)).to be_ok_result
+          end
+
+          it "should return a signature that matches the types" do
+            {:ok, {_bitstring, signature}} = described_module.marshall_bitstring(values, endianness)
+            expect(signature).to eq "si"
+          end
+
+          it "should return a bitstring that contains serialized values without any padding" do
+            {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
+            expect(bitstring).to eq <<5, 0, 0, 0, 97, 98, 99, 100, 101, 0, 0, 0, 210, 4, 0, 0>>
+          end
         end
       end
     end
