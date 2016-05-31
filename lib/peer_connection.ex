@@ -698,7 +698,7 @@ defmodule DBux.PeerConnection do
 
           {:error, reason} ->
             Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse received data: #{inspect(reason)}")
-            {:disconnect, :error, new_state}
+            {:disconnect, :error, state}
         end
 
       {:error, :bitstring_too_short} ->
