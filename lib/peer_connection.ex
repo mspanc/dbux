@@ -641,43 +641,15 @@ defmodule DBux.PeerConnection do
 
 
   @doc false
-  def handle_info({:dbux_transport_receive, bitstream}, %{mod: mod, mod_state: mod_state, state: :ready, buffer: buffer, unwrap_values: unwrap_values, message_queue: message_queue} = state) do
+  def handle_info({:dbux_transport_receive, bitstream}, %{state: :ready, buffer: buffer} = state) do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received when ready")
 
-    case DBux.Message.unmarshall(buffer <> bitstream, unwrap_values) do
-      {:ok, {message, rest}} ->
-        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: Received message = #{inspect(message)}")
-
-        {callback_return, new_message_queue} = case message.message_type do
-          :method_call ->
-            {mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
-
-          :method_return ->
-            {{id, _}, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
-            {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}
-
-          :error ->
-            {{id, _}, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
-            {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}
-
-          :signal ->
-            {mod.handle_signal(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
-        end
-
-        case callback_return do
-          {:noreply, new_mod_state} ->
-            {:noreply, %{state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue}}
-
-          #  TODO
-          # {:send, message_queue, new_mod_state} ->
-          #   {:noreply, %{state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue}}
-        end
-
-      {:error, :bitstring_too_short} ->
-        {:noreply, %{state | buffer: buffer <> bitstream}}
+    case parse_received_data(buffer <> bitstream, state) do
+      {:ok, new_state} ->
+        {:noreply, new_state}
 
       {:error, reason} ->
-        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse received data: reason = #{inspect(reason)}")
         {:disconnect, :error, state}
     end
   end
@@ -701,6 +673,55 @@ defmodule DBux.PeerConnection do
 
       {:stop, info, new_mod_state} ->
         {:stop, info, %{state | mod_state: new_mod_state}}
+    end
+  end
+
+
+  defp parse_received_data(bitstream, %{mod: mod, mod_state: mod_state, unwrap_values: unwrap_values, message_queue: message_queue} = state) do
+    case DBux.Message.unmarshall(bitstream, unwrap_values) do
+      {:ok, {message, rest}} ->
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsed received message, message = #{inspect(message)}")
+
+        {callback_return, new_message_queue} = case message.message_type do
+          :method_call ->
+            {mod.handle_method_call(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
+
+          :method_return ->
+            {{id, _}, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
+            {mod.handle_method_return(message.serial, message.reply_serial, message.body, id, mod_state), new_message_queue}
+
+          :error ->
+            {{id, _}, new_message_queue} = message_queue |> Map.pop(message.reply_serial)
+            {mod.handle_error(message.serial, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}
+
+          :signal ->
+            {mod.handle_signal(message.serial, message.path, message.member, message.interface, message.body, mod_state), message_queue}
+        end
+
+        case callback_return do
+          {:noreply, new_mod_state} ->
+            parse_received_data(rest, %{state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue})
+
+          {:send, messages, new_mod_state} ->
+            new_state = %{state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue}
+
+            case do_send_message_queue(messages, new_state) do
+              {:ok, new_state} ->
+                parse_received_data(rest, new_state)
+
+              {:error, reason} ->
+                Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send message queue: reason = #{inspect(reason)}")
+                {:disconnect, :error, state}
+            end
+        end
+
+      {:error, :bitstring_too_short} ->
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Finished parsing received messages, bitstring too short")
+        {:ok, %{state | buffer: bitstream}}
+
+      {:error, reason} ->
+        Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
+        {:error, reason}
     end
   end
 
