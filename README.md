@@ -32,6 +32,8 @@ still not implemented:
 * Marshalling variants that contain container types
 * Handling message timeouts
 * Handling introspection calls and other generic D-Bus methods
+* Other transports than TCP
+* Other authentication methods than anonymous
 
 # Installation
 
