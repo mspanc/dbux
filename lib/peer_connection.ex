@@ -65,8 +65,8 @@ defmodule DBux.PeerConnection do
         end
 
         @doc false
-        def handle_call(:request_name, state) do
-          case DBux.PeerConnection.do_method_call(self(),
+        def handle_call(:request_name, _sender, state) do
+          case DBux.PeerConnection.send_method_call(self(),
             "/org/freedesktop/DBus",
             "org.freedesktop.DBus",
             "Hello", [
