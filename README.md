@@ -54,8 +54,8 @@ defmodule MyApp.Bus do
   require Logger
   use DBux.PeerConnection
 
-  @request_name_message_id "request_name"
-  @add_match_message_id    "add_match"
+  @request_name_message_id :request_name
+  @add_match_message_id    :add_match
 
   def start_link(hostname, options \\ []) do
     DBux.PeerConnection.start_link(__MODULE__, hostname, options)
@@ -72,7 +72,7 @@ defmodule MyApp.Bus do
 
     {:send, [
       DBux.Message.build_signal("/", "org.example.dbux.MyApp", "Connected", []),
-      {@add_match_message_id,    DBux.MessageTemplate.add_match(:signal, nil, "org.example.dbux.OtherApp")},
+      {@add_match_message_id,    DBux.MessageTemplate.add_match(:signal, nil, "org.example.dbux.OtherIface")},
       {@request_name_message_id, DBux.MessageTemplate.request_name("org.example.dbux.MyApp", 0x4)}
     ], state}
   end
@@ -102,8 +102,13 @@ defmodule MyApp.Bus do
     {:noreply, state}
   end
 
-  def handle_signal(_serial, _sender, _path, _member, "org.example.dbux.OtherApp", _body, state) do
-    Logger.info("Got signal")
+  def handle_signal(_serial, _sender, _path, _member, "org.example.dbux.OtherIface", _body, state) do
+    Logger.info("Got signal from OtherIface")
+    {:noreply, state}
+  end
+
+  def handle_signal(_serial, _sender, _path, _member, _member, _body, state) do
+    Logger.info("Got signal from some other app")
     {:noreply, state}
   end
 end

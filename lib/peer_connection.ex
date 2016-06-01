@@ -14,8 +14,8 @@ defmodule DBux.PeerConnection do
         require Logger
         use DBux.PeerConnection
 
-        @request_name_message_id "request_name"
-        @add_match_message_id    "add_match"
+        @request_name_message_id :request_name
+        @add_match_message_id    :add_match
 
         def start_link(hostname, options \\ []) do
           DBux.PeerConnection.start_link(__MODULE__, hostname, options)
@@ -32,7 +32,7 @@ defmodule DBux.PeerConnection do
 
           {:send, [
             DBux.Message.build_signal("/", "org.example.dbux.MyApp", "Connected", []),
-            {@add_match_message_id,    DBux.MessageTemplate.add_match(:signal, nil, "org.example.dbux.OtherApp")},
+            {@add_match_message_id,    DBux.MessageTemplate.add_match(:signal, nil, "org.example.dbux.OtherIface")},
             {@request_name_message_id, DBux.MessageTemplate.request_name("org.example.dbux.MyApp", 0x4)}
           ], state}
         end
@@ -62,17 +62,14 @@ defmodule DBux.PeerConnection do
           {:noreply, state}
         end
 
-        def handle_signal(_serial, _sender, _path, _member, "org.example.dbux.OtherApp", _body, state) do
-          Logger.info("Got signal")
+        def handle_signal(_serial, _sender, _path, _member, "org.example.dbux.OtherIface", _body, state) do
+          Logger.info("Got signal from OtherIface")
           {:noreply, state}
         end
-      end
 
-  And of the accompanying process that can control the connection:
-
-      defmodule MyApp.Core do
-        def do_the_stuff do
-          {:ok, connection} = MyApp.Bus.start_link("dbusserver.example.com")
+        def handle_signal(_serial, _sender, _path, _member, _member, _body, state) do
+          Logger.info("Got signal from some other app")
+          {:noreply, state}
         end
       end
 
@@ -84,7 +81,7 @@ defmodule DBux.PeerConnection do
   @connect_timeout 5000
   @reconnect_timeout 5000
 
-  @type message_queue_id :: String.t
+  @type message_queue_id :: String.t | atom | number
   @type message_queue :: [] | [%DBux.Message{} | {message_queue_id, %DBux.Message{}}]
 
   @debug !is_nil(System.get_env("DBUX_DEBUG"))
@@ -150,7 +147,7 @@ defmodule DBux.PeerConnection do
   tuples, where `identifier` is an arbitrary identifier that will allow later
   to match response with the message.
   """
-  @callback handle_method_call(DBux.Serial.t, String.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
+  @callback handle_method_call(DBux.Serial.t, String.t, String.t, String.t, String.t, DBux.Value.list_of_values, number, any) ::
     {:noreply, any} |
     {:send, message_queue}
 
@@ -227,7 +224,7 @@ defmodule DBux.PeerConnection do
 
 
       @doc false
-      def handle_method_call(_serial, _sender, _path, _member, _interface, _body, state) do
+      def handle_method_call(_serial, _sender, _path, _member, _interface, _body, _flags, state) do
         {:noreply, state}
       end
 
@@ -293,7 +290,7 @@ defmodule DBux.PeerConnection do
       defoverridable [
         handle_up: 1,
         handle_down: 1,
-        handle_method_call: 7,
+        handle_method_call: 8,
         handle_method_return: 6,
         handle_error: 7,
         handle_signal: 7,
@@ -642,7 +639,7 @@ defmodule DBux.PeerConnection do
 
         return = case message.message_type do
           :method_call ->
-            {:ok, {mod.handle_method_call(message.serial, message.sender, message.path, message.member, message.interface, message.body, mod_state), message_queue}, state}
+            {:ok, {mod.handle_method_call(message.serial, message.sender, message.path, message.member, message.interface, message.body, message.flags, mod_state), message_queue}, state}
 
           :method_return ->
             cond do
