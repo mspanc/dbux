@@ -282,6 +282,85 @@ defmodule DBux.MessageSpec do
           expect(rest).to eq << >>
         end
       end
+
+      context "reply to ListNames" do
+        let :bitstring, do: <<0x6c, 0x02, 0x00, 0x01, 0x2c, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x08, 0x01, 0x67, 0x00, 0x02, 0x61, 0x73, 0x00, 0x05, 0x01, 0x75, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x06, 0x01, 0x73, 0x00, 0x14, 0x00, 0x00, 0x00, 0x6f, 0x72, 0x67, 0x2e, 0x73, 0x6f, 0x6d, 0x65, 0x2e, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x00, 0x00, 0x00, 0x00, 0x07, 0x01, 0x73, 0x00, 0x07, 0x00, 0x00, 0x00, 0x3a, 0x31, 0x2e, 0x31, 0x36, 0x34, 0x30, 0x00, 0x28, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x6f, 0x72, 0x67, 0x2e, 0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x2e, 0x61, 0x62, 0x63, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x6f, 0x72, 0x67, 0x2e, 0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, 0x2e, 0x64, 0x65, 0x66, 0x00>>
+        let :unwrap_values, do: true
+
+        it "should return ok result" do
+          expect(described_module.unmarshall(bitstring, unwrap_values)).to be_ok_result
+        end
+
+        it "should have destination set to \"org.some.destination\"" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.destination).to eq "org.some.destination"
+        end
+
+        it "should have error_name set to nil" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.error_name).to be_nil
+        end
+
+        it "should have flags set to 0" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.flags).to eq 0
+        end
+
+        it "should have interface set to nil" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.interface).to be_nil
+        end
+
+        it "should have member set to nil" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.member).to be_nil
+        end
+
+        it "should have path set to nil" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.path).to be_nil
+        end
+
+        it "should have reply_serial set to 10" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.reply_serial).to eq 10
+        end
+
+        it "should have sender set to \":1.1640\"" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.sender).to eq ":1.1640"
+        end
+
+        it "should have serial set to 10" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.serial).to eq 10
+        end
+
+        it "should have signature set to \"as\"" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.signature).to eq "as"
+        end
+
+        it "should have message_type set to :method_return" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.message_type).to eq :method_return
+        end
+
+        it "should have unix_fds set to nil" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.unix_fds).to be_nil
+        end
+
+        it "should have body set to list of values" do
+          {:ok, {message, _rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(message.body).to eq [["org.process.abc", "org.process.def"]]
+        end
+
+        it "should leave no rest" do
+          {:ok, {_message, rest}} = described_module.unmarshall(bitstring, unwrap_values)
+          expect(rest).to eq << >>
+        end
+      end
     end
   end
 end

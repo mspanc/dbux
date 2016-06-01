@@ -303,8 +303,8 @@ defmodule DBux.Value do
         [{subtype_major, subtype_minor}] ->
           {subtype_major, subtype_minor}
 
-        _ ->
-          {subtype, nil}
+        [subtype_major] ->
+          {subtype_major, nil}
       end
 
       case unmarshall(bitstring, endianness, :uint32, nil, true, depth + 1) do
