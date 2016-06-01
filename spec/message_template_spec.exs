@@ -66,4 +66,27 @@ defmodule DBux.MessageTemplateSpec do
       end
     end
   end
+
+
+  describe ".list_names/1" do
+    context "if no serial is given" do
+      it "returns a valid ListNames message with serial set to 0" do
+        expect(described_module.list_names()).to eq %DBux.Message{
+          body: [], destination: "org.freedesktop.DBus", error_name: nil,
+          flags: 0, interface: "org.freedesktop.DBus", member: "ListNames",
+          message_type: :method_call, path: "/org/freedesktop/DBus", reply_serial: nil,
+          sender: nil, serial: 0, signature: "", unix_fds: nil}
+      end
+    end
+
+    context "if serial is given" do
+      it "returns a valid ListNames message with serial set to given serial" do
+        expect(described_module.list_names(123)).to eq %DBux.Message{
+          body: [], destination: "org.freedesktop.DBus", error_name: nil,
+          flags: 0, interface: "org.freedesktop.DBus", member: "ListNames",
+          message_type: :method_call, path: "/org/freedesktop/DBus", reply_serial: nil,
+          sender: nil, serial: 123, signature: "", unix_fds: nil}
+      end
+    end
+  end
 end

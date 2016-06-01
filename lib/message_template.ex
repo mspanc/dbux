@@ -51,4 +51,13 @@ defmodule DBux.MessageTemplate do
       %DBux.Value{type: :string, value: Enum.join(filter, ",")},
     ], "org.freedesktop.DBus", serial)
   end
+
+
+  @doc """
+  Builds standard method call to org.freedesktop.DBus.ListNames.
+  """
+  @spec list_names(DBux.Serial.t) :: %DBux.Message{}
+  def list_names(serial \\ 0) when is_number(serial) do
+    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames", [], "org.freedesktop.DBus", serial)
+  end
 end
