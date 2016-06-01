@@ -18,6 +18,7 @@ defmodule DBux.Mixfile do
 
   defp deps do
     [{:connection, "~> 1.0.2"},
+     {:ex_doc, ">= 0.0.0", only: :dev},
      {:espec, "~> 0.8.21", only: :test},
      {:excoveralls, "~> 0.5", only: :test}]
   end
