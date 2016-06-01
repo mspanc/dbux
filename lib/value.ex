@@ -314,11 +314,10 @@ defmodule DBux.Value do
             {:error, :bitstring_too_short}
 
           else
-            padding_size = DBux.Type.compute_padding_size(body_length, subtype_major)
-            << body_bitstring :: binary-size(body_length), padding_bitstring :: binary-size(padding_size), rest :: binary >> = rest
-            if @debug, do: debug("Unmarshalling array elements: body_length = #{inspect(body_length)}, padding_size = #{inspect(padding_size)}, body_bitstring = #{inspect(body_bitstring)}, rest = #{inspect(rest)}", depth)
+            << body_bitstring :: binary-size(body_length), rest :: binary >> = rest
+            if @debug, do: debug("Unmarshalling array elements: body_length = #{inspect(body_length)}, body_bitstring = #{inspect(body_bitstring)}, rest = #{inspect(rest)}", depth)
 
-            case parse_array(body_bitstring <> padding_bitstring, endianness, subtype_major, subtype_minor, [], unwrap_values, depth) do
+            case parse_array(body_bitstring, endianness, subtype_major, subtype_minor, [], unwrap_values, depth) do
               {:ok, value} ->
                 if @debug, do: debug("Unmarshalled array elements: value = #{inspect(value)}", depth)
                 case unwrap_values do

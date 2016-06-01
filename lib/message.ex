@@ -256,8 +256,7 @@ defmodule DBux.Message do
           {:error, :bitstring_too_short}
 
         else
-          << body :: binary-size(body_length), rest :: binary >> = rest
-
+          # Interpret header fields
           message_type = case message_type_raw do
             1 -> :method_call
             2 -> :method_return
@@ -283,8 +282,16 @@ defmodule DBux.Message do
             Map.put(acc, message_key, header_field_value)
           end)
 
+          # Header is always aligned to 8 bytes
+          header_length = byte_size(bitstring) - byte_size(rest)
+          header_padding_size = DBux.Type.compute_padding_size(header_length, 8)
+
+          # Ignore padding, extract body & rest
+          << _header_padding :: binary-size(header_padding_size), body :: binary-size(body_length), rest :: binary >> = rest
+
+          # Unmarshall body
           case DBux.Protocol.unmarshall_bitstring(body, endianness, message.signature, unwrap_values) do
-            {:ok, {body, _}} -> # Drop the remaining padding
+            {:ok, {body, _}} -> # Drop the remaining padding in the body
               {:ok, {message |> Map.put(:body, body), rest}}
 
             {:error, reason} ->

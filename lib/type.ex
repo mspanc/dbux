@@ -128,7 +128,13 @@ defmodule DBux.Type do
   # Computes padding size for a type, given data length and type name.
   @doc false
   def compute_padding_size(length, type) when is_atom(type) do
-    align = DBux.Type.align_size(type)
+    compute_padding_size(length, DBux.Type.align_size(type))
+  end
+
+
+  # Computes padding size for a type, given data length and target padding.
+  @doc false
+  def compute_padding_size(length, align) when is_number(align) do
     padding = rem(length, align)
 
     case padding do
