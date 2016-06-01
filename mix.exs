@@ -26,16 +26,15 @@ defmodule DBux.Mixfile do
 
   defp description do
     """
-    D-Connection IPC protocol for Elixir.
+    Bindings for the D-Bus IPC protocol.
     """
   end
 
   defp package do
     [# These are the default files included in the package
-     files: ["lib", "priv", "mix.exs", "README*", "readme*", "LICENSE*", "license*"],
+     files: ["lib", "mix.exs", "README*"],
      maintainers: ["Marcin Lewandowski"],
      licenses: ["MIT"],
-     links: %{"GitHub" => "https://github.com/mspanc/dbux",
-              "Docs" => "http://mspanc.github.io/dbux/"}]
+     links: %{"GitHub" => "https://github.com/mspanc/dbux"}]
   end
 end
