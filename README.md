@@ -57,6 +57,34 @@ defmodule MyApp.Bus do
   @request_name_message_id :request_name
   @add_match_message_id    :add_match
 
+  @introspection """
+  <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+   "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+  <node name="/com/example/sample_object">
+    <interface name="com.example.SampleInterface">
+      <method name="Frobate">
+        <arg name="foo" type="i" direction="in"/>
+        <arg name="bar" type="s" direction="out"/>
+        <arg name="baz" type="a{us}" direction="out"/>
+        <annotation name="org.freedesktop.DBus.Deprecated" value="true"/>
+      </method>
+      <method name="Bazify">
+        <arg name="bar" type="(iiu)" direction="in"/>
+        <arg name="bar" type="v" direction="out"/>
+      </method>
+      <method name="Mogrify">
+        <arg name="bar" type="(iiav)" direction="in"/>
+      </method>
+      <signal name="Changed">
+        <arg name="new_value" type="b"/>
+      </signal>
+      <property name="Bar" type="y" access="readwrite"/>
+    </interface>
+    <node name="child_of_sample_object"/>
+    <node name="another_child_of_sample_object"/>
+  </node>
+  """
+
   def start_link(hostname, options \\ []) do
     DBux.PeerConnection.start_link(__MODULE__, hostname, options)
   end
@@ -80,6 +108,14 @@ defmodule MyApp.Bus do
   def handle_down(state) do
     Logger.warn("Down")
     {:backoff, 1000, state}
+  end
+
+  def handle_method_call(serial, sender, "/", "Introspect", "org.freedesktop.DBus.Introspectable", _body, _flags, state) do
+    Logger.debug("Got Introspect call")
+
+    {:send, [
+      DBux.Message.build_method_return(serial, sender, [%DBux.Value{type: :string, value: @introspection}])
+    ], state}
   end
 
   def handle_method_return(_serial, _sender, _reply_serial, _body, @request_name_message_id, state) do
@@ -112,6 +148,7 @@ defmodule MyApp.Bus do
     {:noreply, state}
   end
 end
+
 ```
 
 And of the accompanying process that can control the connection:
