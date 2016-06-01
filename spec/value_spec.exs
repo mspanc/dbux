@@ -1171,7 +1171,7 @@ defmodule DBux.ValueSpec do
       pending "and subtype is a simple type"
 
       context "and subtype is a struct" do
-        let :value, do: %DBux.Value{type: type, subtype: :struct, value: subvalues}
+        let :value, do: %DBux.Value{type: type, subtype: [:struct], value: subvalues}
 
         context "and its elements need padding" do
           let :subvalues, do: [

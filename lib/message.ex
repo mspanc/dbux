@@ -63,7 +63,7 @@ defmodule DBux.Message do
   @doc """
   Creates DBux.Message with attributes appropriate for method return.
   """
-  @spec build_method_return(DBux.Serial.t, DBux.Value.list_of_values, DBux.Serial.t) :: %DBux.Message{}
+  @spec build_method_return(DBux.Serial.t, String.t, DBux.Value.list_of_values, DBux.Serial.t) :: %DBux.Message{}
   def build_method_return(reply_serial, destination, body \\ [], serial \\ 0) when is_number(serial) and is_number(reply_serial) and is_list(body) and is_binary(destination) do
     %DBux.Message{serial: serial, message_type: :method_return, reply_serial: reply_serial, body: body, destination: destination}
   end
@@ -215,7 +215,7 @@ defmodule DBux.Message do
         header_fields_value ++ [%DBux.Value{type: :struct, subtype: [:byte, :variant], value: [%DBux.Value{type: :byte, value: 9}, %DBux.Value{type: :variant, subtype: :uint32, value: message.unix_fds}]}]
     end
 
-    {:ok, {header_fields_bitstring, _}} = %DBux.Value{type: :array, subtype: :struct, value: header_fields_value} |> DBux.Value.marshall(endianness)
+    {:ok, {header_fields_bitstring, _}} = %DBux.Value{type: :array, subtype: [:struct], value: header_fields_value} |> DBux.Value.marshall(endianness)
 
     {:ok, {message_bitstring, _padding}} = header_endianness_bitstring <>
       header_message_type_bitstring <>

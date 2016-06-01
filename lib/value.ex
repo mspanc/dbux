@@ -212,7 +212,7 @@ defmodule DBux.Value do
 
 
   @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :array, subtype: subtype, value: value}, endianness) when is_list(value) do
+  def marshall(%DBux.Value{type: :array, subtype: [subtype], value: value}, endianness) when is_list(value) do
     if @debug, do: debug("Marshalling array: subtype = #{inspect(subtype)}, value = #{inspect(value)}", 0)
 
     {body_bitstring, last_element_padding} = Enum.reduce(value, {<< >>, 0}, fn(element, acc) ->
