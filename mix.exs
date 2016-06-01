@@ -3,7 +3,7 @@ defmodule DBux.Mixfile do
 
   def project do
     [app: :dbux,
-     version: "1.0.0",
+     version: "1.0.2",
      elixir: "~> 1.0",
      description: description,
      package: package,
