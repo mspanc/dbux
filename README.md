@@ -47,7 +47,7 @@ end
 
 # Sample Usage
 
-An example `DBux.Connection` process:
+An example `DBux.PeerConnection` process:
 
 ```elixir
 defmodule MyApp.Bus do
@@ -108,7 +108,7 @@ defmodule MyApp.Bus do
   end
 
   def handle_signal(_serial, _sender, _path, _member, _member, _body, state) do
-    Logger.info("Got signal from some other app")
+    Logger.info("Got other signal")
     {:noreply, state}
   end
 end
