@@ -118,30 +118,16 @@ defmodule DBux.Protocol do
 
   defp unmarshall_bitstring_step(bitstring, endianness, [signature_head|signature_rest], unwrap_values, values_acc, position_acc) do
     if @debug, do: Logger.debug("unmarshall_bitstring_step: bitstring = #{inspect(bitstring)}, signature_head = #{inspect(signature_head)}, values_acc = #{inspect(values_acc)}, position_acc = #{inspect(position_acc)}")
-    case signature_head do
-      {subtype_major, subtype_minor} ->
-        padding_size = DBux.Type.compute_padding_size(position_acc, subtype_major)
-        << padding :: binary-size(padding_size), rest_after_padding :: binary >> = bitstring
-        if @debug, do: Logger.debug("unmarshall_bitstring_step: padding = #{inspect(padding)}, rest_after_padding = #{inspect(rest_after_padding)}")
-        case DBux.Value.unmarshall(rest_after_padding, endianness, subtype_major, subtype_minor, unwrap_values, 0) do
-          {:ok, {value, rest_after_parse}} ->
-            unmarshall_bitstring_step(rest_after_parse, endianness, signature_rest, unwrap_values, values_acc ++ [value], position_acc + (byte_size(bitstring) - byte_size(rest_after_parse)))
 
-          {:error, reason} ->
-            {:error, reason}
-        end
+    padding_size = DBux.Type.compute_padding_size(position_acc, signature_head)
+    << padding :: binary-size(padding_size), rest_after_padding :: binary >> = bitstring
+    if @debug, do: Logger.debug("unmarshall_bitstring_step: padding = #{inspect(padding)}, rest_after_padding = #{inspect(rest_after_padding)}")
+    case DBux.Value.unmarshall(rest_after_padding, endianness, signature_head, unwrap_values, 0) do
+      {:ok, {value, rest_after_parse}} ->
+        unmarshall_bitstring_step(rest_after_parse, endianness, signature_rest, unwrap_values, values_acc ++ [value], position_acc + (byte_size(bitstring) - byte_size(rest_after_parse)))
 
-      _ ->
-        padding_size = DBux.Type.compute_padding_size(position_acc, signature_head)
-        << padding :: binary-size(padding_size), rest_after_padding :: binary >> = bitstring
-        if @debug, do: Logger.debug("unmarshall_bitstring_step: padding = #{inspect(padding)}, rest_after_padding = #{inspect(rest_after_padding)}")
-        case DBux.Value.unmarshall(rest_after_padding, endianness, signature_head, nil, unwrap_values, 0) do
-          {:ok, {value, rest_after_parse}} ->
-            unmarshall_bitstring_step(rest_after_parse, endianness, signature_rest, unwrap_values, values_acc ++ [value], position_acc + (byte_size(bitstring) - byte_size(rest_after_parse)))
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

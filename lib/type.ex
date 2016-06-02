@@ -30,15 +30,6 @@ defmodule DBux.Type do
   def signature(:variant),     do: "v"
   def signature(%DBux.Value{type: type}), do: signature(type)
 
-  def signature({:array, [subtype]}), do: "a" <> signature(subtype)
-  def signature(%DBux.Value{type: :array, subtype: [subtype]}), do: signature({:array, [subtype]})
-
-  def signature({:struct, subtypes}) when is_list(subtypes), do: "(" <> Enum.map(subtypes, fn(subtype) -> signature(subtype) end) <> ")"
-  def signature(%DBux.Value{type: :struct, subtype: subtypes}) when is_list(subtypes), do: signature({:struct, subtypes})
-
-  def signature({:dict_entry, subtypes}) when is_list(subtypes), do: "{" <> Enum.map(subtypes, fn(subtype) -> signature(subtype) end) <> "}"
-  def signature(%DBux.Value{type: :dict_entry, subtype: subtypes}) when is_list(subtypes), do: signature({:dict_entry, subtypes})
-
 
   @doc """
   Returns atom that contains atom identifying type.
@@ -105,7 +96,6 @@ defmodule DBux.Type do
   def align_size(:variant),     do: 1
   def align_size(:dict_entry),  do: 8
   def align_size(:unix_fd),     do: 4
-  def align_size({subtype_major, _subtype_minor}), do: align_size(subtype_major)
 
 
   # Computes padding size for container types.

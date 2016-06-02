@@ -1171,12 +1171,12 @@ defmodule DBux.ValueSpec do
       pending "and subtype is a simple type"
 
       context "and subtype is a struct" do
-        let :value, do: %DBux.Value{type: type, subtype: [:struct], value: subvalues}
+        let :value, do: %DBux.Value{type: type, value: subvalues}
 
         context "and its elements need padding" do
           let :subvalues, do: [
-            %DBux.Value{type: :struct, subtype: [:string], value: [%DBux.Value{type: :string, value: "abcdefgh"}]},
-            %DBux.Value{type: :struct, subtype: [:string], value: [%DBux.Value{type: :string, value: "12345678"}]}]
+            %DBux.Value{type: :struct, value: [%DBux.Value{type: :string, value: "abcdefgh"}]},
+            %DBux.Value{type: :struct, value: [%DBux.Value{type: :string, value: "12345678"}]}]
 
           context "and endianness is little-endian" do
             let :endianness, do: :little_endian
@@ -1206,7 +1206,7 @@ defmodule DBux.ValueSpec do
       let :type, do: :struct
 
       context "and subtype is a single simple type" do
-        let :value, do: %DBux.Value{type: type, subtype: [:string], value: [%DBux.Value{type: :string, value: subvalue}]}
+        let :value, do: %DBux.Value{type: type, value: [%DBux.Value{type: :string, value: subvalue}]}
 
         context "and its elements need padding" do
           let :subvalue, do: "abcdefgh"
@@ -1306,7 +1306,7 @@ defmodule DBux.ValueSpec do
   end
 
 
-  describe ".unmarshall/6" do
+  describe ".unmarshall/5" do
     let :depth, do: 0
 
     xcontext "if type is array" do
@@ -1327,7 +1327,6 @@ defmodule DBux.ValueSpec do
 
     context "if type is byte" do
       let :type, do: :byte
-      let :subtype, do: nil
 
       context "and given bitstring is too short" do
         let :unwrap_values, do: true
@@ -1337,11 +1336,11 @@ defmodule DBux.ValueSpec do
           let :endianness, do: :little_endian
 
           it "should return an error result" do
-            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+            expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_error_result
           end
 
           it "should return :bitstring_too_short as an error reason" do
-            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
             expect(reason).to eq :bitstring_too_short
           end
         end
@@ -1351,11 +1350,11 @@ defmodule DBux.ValueSpec do
           let :endianness, do: :big_endian
 
           it "should return an error result" do
-            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+            expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_error_result
           end
 
           it "should return :bitstring_too_short as an error reason" do
-            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
             expect(reason).to eq :bitstring_too_short
           end
         end
@@ -1371,16 +1370,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1389,16 +1388,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1413,16 +1412,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1431,16 +1430,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1457,16 +1456,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1475,16 +1474,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1499,16 +1498,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1517,16 +1516,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1568,7 +1567,6 @@ defmodule DBux.ValueSpec do
 
     context "if type is object_path" do
       let :type, do: :object_path
-      let :subtype, do: nil
 
       context "and given bitstring is too short" do
         let :unwrap_values, do: true
@@ -1578,11 +1576,11 @@ defmodule DBux.ValueSpec do
           let :endianness, do: :little_endian
 
           it "should return an error result" do
-            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+            expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_error_result
           end
 
           it "should return :bitstring_too_short as an error reason" do
-            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
             expect(reason).to eq :bitstring_too_short
           end
         end
@@ -1592,11 +1590,11 @@ defmodule DBux.ValueSpec do
           let :endianness, do: :big_endian
 
           it "should return an error result" do
-            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+            expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_error_result
           end
 
           it "should return :bitstring_too_short as an error reason" do
-            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
             expect(reason).to eq :bitstring_too_short
           end
         end
@@ -1612,16 +1610,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1630,16 +1628,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1654,16 +1652,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1672,16 +1670,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1698,16 +1696,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1716,16 +1714,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1740,16 +1738,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1758,16 +1756,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1777,7 +1775,6 @@ defmodule DBux.ValueSpec do
 
     context "if type is string" do
       let :type, do: :string
-      let :subtype, do: nil
 
       context "and given bitstring is too short" do
         let :unwrap_values, do: true
@@ -1787,11 +1784,11 @@ defmodule DBux.ValueSpec do
           let :endianness, do: :little_endian
 
           it "should return an error result" do
-            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+            expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_error_result
           end
 
           it "should return :bitstring_too_short as an error reason" do
-            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
             expect(reason).to eq :bitstring_too_short
           end
         end
@@ -1801,11 +1798,11 @@ defmodule DBux.ValueSpec do
           let :endianness, do: :big_endian
 
           it "should return an error result" do
-            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+            expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_error_result
           end
 
           it "should return :bitstring_too_short as an error reason" do
-            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
             expect(reason).to eq :bitstring_too_short
           end
         end
@@ -1821,16 +1818,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1839,16 +1836,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1863,16 +1860,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1881,16 +1878,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -1907,16 +1904,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1925,16 +1922,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1949,16 +1946,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1967,16 +1964,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -1986,7 +1983,6 @@ defmodule DBux.ValueSpec do
 
     context "if type is signature" do
       let :type, do: :signature
-      let :subtype, do: nil
 
       context "and given bitstring is too short" do
         let :unwrap_values, do: true
@@ -1996,11 +1992,11 @@ defmodule DBux.ValueSpec do
           let :endianness, do: :little_endian
 
           it "should return an error result" do
-            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+            expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_error_result
           end
 
           it "should return :bitstring_too_short as an error reason" do
-            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
             expect(reason).to eq :bitstring_too_short
           end
         end
@@ -2010,11 +2006,11 @@ defmodule DBux.ValueSpec do
           let :endianness, do: :big_endian
 
           it "should return an error result" do
-            expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_error_result
+            expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_error_result
           end
 
           it "should return :bitstring_too_short as an error reason" do
-            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+            {:error, reason} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
             expect(reason).to eq :bitstring_too_short
           end
         end
@@ -2030,16 +2026,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -2048,16 +2044,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -2072,16 +2068,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -2090,16 +2086,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return an empty rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << >>
             end
           end
@@ -2116,16 +2112,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -2134,16 +2130,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -2158,16 +2154,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: true
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(value).to eq expected_value
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
@@ -2176,16 +2172,16 @@ defmodule DBux.ValueSpec do
             let :unwrap_values, do: false
 
             it "should return an ok result" do
-              expect(described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)).to be_ok_result
+              expect(described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)).to be_ok_result
             end
 
             it "should return a parsed string wrapped in a struct" do
-              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
-              expect(value).to eq %DBux.Value{type: type, subtype: subtype, value: expected_value}
+              {:ok, {value, _rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
+              expect(value).to eq %DBux.Value{type: type, value: expected_value}
             end
 
             it "should return extra data as rest" do
-              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, subtype, unwrap_values, depth)
+              {:ok, {_value, rest}} = described_module.unmarshall(bitstring, endianness, type, unwrap_values, depth)
               expect(rest).to eq << "a", "b", "c" >>
             end
           end
