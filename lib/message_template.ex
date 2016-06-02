@@ -10,7 +10,7 @@ defmodule DBux.MessageTemplate do
   """
   @spec hello(DBux.Serial.t) :: %DBux.Message{}
   def hello(serial \\ 0) when is_number(serial) do
-    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus", serial)
+    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", "", [], "org.freedesktop.DBus", serial)
   end
 
 
@@ -19,7 +19,7 @@ defmodule DBux.MessageTemplate do
   """
   @spec request_name(String.t, number, DBux.Serial.t) :: %DBux.Message{}
   def request_name(name, flags \\ 0, serial \\ 0) when is_number(serial) and is_binary(name) and is_number(flags) do
-    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName", [
+    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName", "su", [
       %DBux.Value{type: :string, value: name},
       %DBux.Value{type: :uint32, value: flags}
     ], "org.freedesktop.DBus", serial)
@@ -47,7 +47,7 @@ defmodule DBux.MessageTemplate do
     # TODO add support for string_matches
     # TODO add support for path_matches
 
-    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "AddMatch", [
+    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "AddMatch", "s", [
       %DBux.Value{type: :string, value: Enum.join(filter, ",")},
     ], "org.freedesktop.DBus", serial)
   end
@@ -58,6 +58,6 @@ defmodule DBux.MessageTemplate do
   """
   @spec list_names(DBux.Serial.t) :: %DBux.Message{}
   def list_names(serial \\ 0) when is_number(serial) do
-    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames", [], "org.freedesktop.DBus", serial)
+    DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames", "", [], "org.freedesktop.DBus", serial)
   end
 end

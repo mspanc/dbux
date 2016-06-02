@@ -45,36 +45,36 @@ defmodule DBux.Message do
   @doc """
   Creates DBux.Message with attributes appropriate for method call.
   """
-  @spec build_method_call(String.t, String.t, DBux.Value.list_of_values, String.t | nil, DBux.Serial.t) :: %DBux.Message{}
-  def build_method_call(path, interface, member, body \\ [], destination \\ nil, serial \\ 0) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) and (is_binary(destination) or is_nil(destination)) do
-    %DBux.Message{serial: serial, message_type: :method_call, path: path, interface: interface, member: member, body: body, destination: destination}
+  @spec build_method_call(String.t, String.t, String.t, DBux.Value.list_of_values, String.t | nil, DBux.Serial.t) :: %DBux.Message{}
+  def build_method_call(path, interface, member, signature \\ "", body \\ [], destination \\ nil, serial \\ 0) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) and (is_binary(destination) or is_nil(destination)) and is_binary(signature) do
+    %DBux.Message{signature: signature, serial: serial, message_type: :method_call, path: path, interface: interface, member: member, body: body, destination: destination}
   end
 
 
   @doc """
   Creates DBux.Message with attributes appropriate for signal.
   """
-  @spec build_signal(String.t, String.t, String.t,  DBux.Value.list_of_values, DBux.Serial.t) :: %DBux.Message{}
-  def build_signal(path, interface, member, body \\ [], serial \\ 0) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) do
-    %DBux.Message{serial: serial, message_type: :signal, path: path, interface: interface, member: member, body: body}
+  @spec build_signal(String.t, String.t, String.t,  String.t, DBux.Value.list_of_values, DBux.Serial.t) :: %DBux.Message{}
+  def build_signal(path, interface, member, signature \\ "", body \\ [], serial \\ 0) when is_number(serial) and is_binary(path) and is_binary(interface) and is_list(body) and is_binary(signature) do
+    %DBux.Message{signature: signature, serial: serial, message_type: :signal, path: path, interface: interface, member: member, body: body}
   end
 
 
   @doc """
   Creates DBux.Message with attributes appropriate for method return.
   """
-  @spec build_method_return(DBux.Serial.t, String.t, DBux.Value.list_of_values, DBux.Serial.t) :: %DBux.Message{}
-  def build_method_return(reply_serial, destination, body \\ [], serial \\ 0) when is_number(serial) and is_number(reply_serial) and is_list(body) and is_binary(destination) do
-    %DBux.Message{serial: serial, message_type: :method_return, reply_serial: reply_serial, body: body, destination: destination}
+  @spec build_method_return(DBux.Serial.t, String.t, String.t, DBux.Value.list_of_values, DBux.Serial.t) :: %DBux.Message{}
+  def build_method_return(reply_serial, destination, signature \\ "", body \\ [], serial \\ 0) when is_number(serial) and is_number(reply_serial) and is_list(body) and is_binary(destination) and is_binary(signature) do
+    %DBux.Message{signature: signature, serial: serial, message_type: :method_return, reply_serial: reply_serial, body: body, destination: destination}
   end
 
 
   @doc """
   Creates DBux.Message with attributes appropriate for error.
   """
-  @spec build_error(DBux.Serial.t, String.t, DBux.Value.list_of_values, DBux.Serial.t) :: %DBux.Message{}
-  def build_error(reply_serial, error_name, destination, body \\ [], serial \\ 0) when is_number(serial) and is_number(reply_serial) and is_binary(error_name) and is_list(body) and is_binary(destination) do
-    %DBux.Message{serial: serial, message_type: :error, reply_serial: reply_serial, error_name: error_name, body: body, destination: destination}
+  @spec build_error(DBux.Serial.t, String.t, String.t, DBux.Value.list_of_values, DBux.Serial.t) :: %DBux.Message{}
+  def build_error(reply_serial, error_name, destination, signature \\ "", body \\ [], serial \\ 0) when is_number(serial) and is_number(reply_serial) and is_binary(error_name) and is_list(body) and is_binary(destination) and is_binary(signature) do
+    %DBux.Message{signature: signature, serial: serial, message_type: :error, reply_serial: reply_serial, error_name: error_name, body: body, destination: destination}
   end
 
 
@@ -130,7 +130,7 @@ defmodule DBux.Message do
     # The header ends after its alignment padding to an 8-boundary.
     #
 
-    {:ok, {body_bitstring, body_signature}} = DBux.Protocol.marshall_bitstring(message.body, endianness)
+    {:ok, body_bitstring} = DBux.Protocol.marshall_bitstring(message.body, endianness)
     {:ok, {body_length, _}} = %DBux.Value{type: :uint32, value: byte_size(body_bitstring)} |> DBux.Value.marshall(endianness)
 
 
@@ -146,12 +146,12 @@ defmodule DBux.Message do
     # fields are required.
     header_fields_values = []
 
-    header_fields_values = case body_signature do
+    header_fields_values = case message.signature do
       "" ->
         header_fields_values
 
       _ ->
-        header_fields_values ++ [%DBux.Value{type: :struct, value: [%DBux.Value{type: :byte, value: 8}, %DBux.Value{type: :variant, value: %DBux.Value{type: :signature, value: body_signature}}]}]
+        header_fields_values ++ [%DBux.Value{type: :struct, value: [%DBux.Value{type: :byte, value: 8}, %DBux.Value{type: :variant, value: %DBux.Value{type: :signature, value: message.signature}}]}]
     end
 
 

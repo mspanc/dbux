@@ -4,7 +4,7 @@ defmodule DBux.MessageSpec do
   describe ".marshall/2" do
     context "in case of some well-known messages" do
       context "Hello" do
-        let :message, do: DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", [], "org.freedesktop.DBus", 1)
+        let :message, do: DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello", "", [], "org.freedesktop.DBus", 1)
         let :endianness, do: :little_endian
 
         # In practice the order of header fields may vary, and this is allowed
@@ -23,7 +23,7 @@ defmodule DBux.MessageSpec do
       end
 
       context "RequestName" do
-        let :message, do: DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName", [%DBux.Value{type: :string, value: "com.example.dbus"}, %DBux.Value{type: :uint32, value: 0}], "org.freedesktop.DBus", 2) |> Map.put(:sender, ":1.1646")
+        let :message, do: DBux.Message.build_method_call("/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName", "su", [%DBux.Value{type: :string, value: "com.example.dbus"}, %DBux.Value{type: :uint32, value: 0}], "org.freedesktop.DBus", 2) |> Map.put(:sender, ":1.1646")
         let :endianness, do: :little_endian
 
         # In practice the order of header fields may vary, and this is allowed

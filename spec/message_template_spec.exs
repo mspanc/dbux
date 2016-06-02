@@ -36,7 +36,7 @@ defmodule DBux.MessageTemplateSpec do
           ], destination: "org.freedesktop.DBus", error_name: nil,
           flags: 0, interface: "org.freedesktop.DBus", member: "RequestName",
           message_type: :method_call, path: "/org/freedesktop/DBus", reply_serial: nil,
-          sender: nil, serial: 0, signature: "", unix_fds: nil}
+          sender: nil, serial: 0, signature: "su", unix_fds: nil}
       end
     end
 
@@ -49,7 +49,7 @@ defmodule DBux.MessageTemplateSpec do
           ], destination: "org.freedesktop.DBus", error_name: nil,
           flags: 0, interface: "org.freedesktop.DBus", member: "RequestName",
           message_type: :method_call, path: "/org/freedesktop/DBus", reply_serial: nil,
-          sender: nil, serial: 0, signature: "", unix_fds: nil}
+          sender: nil, serial: 0, signature: "su", unix_fds: nil}
       end
     end
 
@@ -62,7 +62,7 @@ defmodule DBux.MessageTemplateSpec do
           ], destination: "org.freedesktop.DBus", error_name: nil,
           flags: 0, interface: "org.freedesktop.DBus", member: "RequestName",
           message_type: :method_call, path: "/org/freedesktop/DBus", reply_serial: nil,
-          sender: nil, serial: 123, signature: "", unix_fds: nil}
+          sender: nil, serial: 123, signature: "su", unix_fds: nil}
       end
     end
   end

@@ -365,7 +365,7 @@ defmodule DBux.Value do
 
           case DBux.Type.type_from_signature(signature) do
             {:ok, list_of_types} ->
-              {body_type_major, body_type_minor} = case hd(list_of_types) do
+              {body_type_major, _body_type_minor} = case hd(list_of_types) do
                 {body_type_major, body_type_minor} ->
                   {body_type_major, body_type_minor}
 

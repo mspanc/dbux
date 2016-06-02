@@ -81,27 +81,27 @@ defmodule DBux.Protocol do
   @doc """
   Marshalls given list of values using given endianness.
 
-  It returns `{:ok, {bitstring, signature}}`.
+  It returns `{:ok, bitstring}`.
 
   It applies padding between values if they require some alignment.
   """
   @spec marshall_bitstring(DBux.Value.list_of_values, endianness) :: {:ok, {Bitstring, String.t}}
   def marshall_bitstring(values, endianness) when is_list(values) and is_atom(endianness) do
-    marshall_bitstring_step(values, endianness, << >>, << >>)
+    marshall_bitstring_step(values, endianness, << >>)
   end
 
 
-  defp marshall_bitstring_step([], _endianness, bitstring_acc, signature_acc) do
-    {:ok, {bitstring_acc, signature_acc}}
+  defp marshall_bitstring_step([], _endianness, bitstring_acc) do
+    {:ok, bitstring_acc}
   end
 
 
-  defp marshall_bitstring_step([head|tail], endianness, bitstring_acc, signature_acc) do
+  defp marshall_bitstring_step([head|tail], endianness, bitstring_acc) do
     {:ok, {bitstring_with_padding, _padding}} = bitstring_acc |> DBux.Value.align(head.type)
 
     case DBux.Value.marshall(head, endianness) do
       {:ok, {bitstring_value, _padding}} ->
-        marshall_bitstring_step(tail, endianness, bitstring_with_padding <> bitstring_value, signature_acc <> DBux.Type.signature(head))
+        marshall_bitstring_step(tail, endianness, bitstring_with_padding <> bitstring_value)
     end
   end
 

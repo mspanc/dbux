@@ -270,13 +270,8 @@ defmodule DBux.ProtocolSpec do
         expect(described_module.marshall_bitstring(values, endianness)).to be_ok_result
       end
 
-      it "should return an empty signature" do
-        {:ok, {_bitstring, signature}} = described_module.marshall_bitstring(values, endianness)
-        expect(signature).to eq ""
-      end
-
       it "should return an empty bitstring" do
-        {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
+        {:ok, bitstring} = described_module.marshall_bitstring(values, endianness)
         expect(bitstring).to eq ""
       end
     end
@@ -294,13 +289,8 @@ defmodule DBux.ProtocolSpec do
             expect(described_module.marshall_bitstring(values, endianness)).to be_ok_result
           end
 
-          it "should return a signature that matches the types" do
-            {:ok, {_bitstring, signature}} = described_module.marshall_bitstring(values, endianness)
-            expect(signature).to eq "is"
-          end
-
           it "should return a bitstring that contains serialized values without any padding" do
-            {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
+            {:ok, bitstring} = described_module.marshall_bitstring(values, endianness)
             expect(bitstring).to eq <<210, 4, 0, 0, 5, 0, 0, 0, 97, 98, 99, 100, 101, 0>>
           end
         end
@@ -315,13 +305,8 @@ defmodule DBux.ProtocolSpec do
             expect(described_module.marshall_bitstring(values, endianness)).to be_ok_result
           end
 
-          it "should return a signature that matches the types" do
-            {:ok, {_bitstring, signature}} = described_module.marshall_bitstring(values, endianness)
-            expect(signature).to eq "si"
-          end
-
           it "should return a bitstring that contains serialized values without any padding" do
-            {:ok, {bitstring, _signature}} = described_module.marshall_bitstring(values, endianness)
+            {:ok, bitstring} = described_module.marshall_bitstring(values, endianness)
             expect(bitstring).to eq <<5, 0, 0, 0, 97, 98, 99, 100, 101, 0, 0, 0, 210, 4, 0, 0>>
           end
         end
