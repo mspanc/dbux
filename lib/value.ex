@@ -233,15 +233,16 @@ defmodule DBux.Value do
     if @debug, do: debug("Marshalling struct start: elements = #{inspect(elements)}", 0)
 
     elements_bitstring = Enum.reduce(elements, << >>, fn(element, bitstring_acc) ->
-      if @debug, do: debug("Marshalling array step: element = #{inspect(element)}, bitstring_acc = #{inspect(bitstring_acc)}", 0)
+      if @debug, do: debug("Marshalling struct step pre: element = #{inspect(element)}, bitstring_acc = #{inspect(bitstring_acc)}", 0)
       {:ok, {element_bitstring, element_padding}} = element |> marshall(endianness)
-      if @debug, do: debug("Marshalling struct step: element_bitstring = #{inspect(element_bitstring)}, element_padding = #{inspect(element_padding)}", 0)
+      if @debug, do: debug("Marshalling struct step post: element_bitstring = #{inspect(element_bitstring)}, element_padding = #{inspect(element_padding)}", 0)
 
       bitstring_acc <> element_bitstring
     end)
 
+    if @debug, do: debug("Marshalling struct done pre: elements_bitstring = #{inspect(elements_bitstring)}, byte_size(elements_bitstring) = #{inspect(byte_size(elements_bitstring))}", 0)
     {:ok, {elements_bitstring, last_element_padding}} = elements_bitstring |> align(:struct)
-    if @debug, do: debug("Marshalling struct done: elements_bitstring = #{inspect(elements_bitstring)}, last_element_padding = #{inspect(last_element_padding)}", 0)
+    if @debug, do: debug("Marshalling struct done post: elements_bitstring = #{inspect(elements_bitstring)}, last_element_padding = #{inspect(last_element_padding)}", 0)
     {:ok, {elements_bitstring, last_element_padding}}
   end
 

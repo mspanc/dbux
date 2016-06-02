@@ -215,7 +215,7 @@ defmodule DBux.Message do
         header_fields_values ++ [%DBux.Value{type: :struct, value: [%DBux.Value{type: :byte, value: 9}, %DBux.Value{type: :variant, value: %DBux.Value{type: :uint32, value: message.unix_fds}}]}]
     end
 
-    {:ok, {header_fields_bitstring, _}} = %DBux.Value{type: :array, value: [%DBux.Value{type: :struct, value: header_fields_values}]} |> DBux.Value.marshall(endianness)
+    {:ok, {header_fields_bitstring, _}} = %DBux.Value{type: :array, value: header_fields_values} |> DBux.Value.marshall(endianness)
 
     {:ok, {message_bitstring, _padding}} = header_endianness_bitstring <>
       header_message_type_bitstring <>
