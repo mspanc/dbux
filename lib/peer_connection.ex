@@ -207,6 +207,12 @@ defmodule DBux.PeerConnection do
   Called when we receive an error.
 
   Returning `{:noreply, state}` will cause to update state with `state`.
+
+  Returning `{:send, list_of_messages, state}` will cause to update state with
+  `state` and send messages passed as the second element of the tuple. The list
+  can just contain `DBux.Message` structs or `{identifier, %DBux.Message{}}`
+  tuples, where `identifier` is an arbitrary identifier that will allow later
+  to match response with the message.
   """
   @callback handle_error(DBux.Serial.t, String.t, DBux.Serial.t, String.t, DBux.Value.list_of_values, message_queue_id, any) ::
     {:noreply, any} |
@@ -217,6 +223,12 @@ defmodule DBux.PeerConnection do
   Called when we receive a signal.
 
   Returning `{:noreply, state}` will cause to update state with `state`.
+
+  Returning `{:send, list_of_messages, state}` will cause to update state with
+  `state` and send messages passed as the second element of the tuple. The list
+  can just contain `DBux.Message` structs or `{identifier, %DBux.Message{}}`
+  tuples, where `identifier` is an arbitrary identifier that will allow later
+  to match response with the message.
   """
   @callback handle_signal(DBux.Serial.t, String.t, String.t, String.t, String.t, DBux.Value.list_of_values, any) ::
     {:noreply, any} |
@@ -232,11 +244,18 @@ defmodule DBux.PeerConnection do
   return `value` to the caller .
 
   Returning `{:stop, reason, state}` will cause to terminate the process.
+
+  Returning `{:send, list_of_messages, state}` will cause to update state with
+  `state` and send messages passed as the second element of the tuple. The list
+  can just contain `DBux.Message` structs or `{identifier, %DBux.Message{}}`
+  tuples, where `identifier` is an arbitrary identifier that will allow later
+  to match response with the message.
   """
   @callback handle_call(any, GenServer.server, any) ::
     {:reply, any, any} |
     {:noreply, any} |
-    {:stop, any, any}
+    {:stop, any, any} |
+    {:send, message_queue}
 
 
 
@@ -579,6 +598,17 @@ defmodule DBux.PeerConnection do
 
       {:noreply, new_mod_state} ->
         {:noreply, %{state | mod_state: new_mod_state}}
+
+      {:send, messages, new_mod_state} ->
+        new_state = %{state | mod_state: new_mod_state}
+        case do_send_message_queue(messages, new_state) do
+          {:ok, new_state} ->
+            {:reply, :ok, new_state}
+
+          {:error, reason} ->
+            Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send message queue: reason = #{inspect(reason)}")
+            {:disconnect, :error, new_state}
+        end
     end
   end
 
