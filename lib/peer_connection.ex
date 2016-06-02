@@ -607,7 +607,7 @@ defmodule DBux.PeerConnection do
 
           {:error, reason} ->
             Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send message queue: reason = #{inspect(reason)}")
-            {:disconnect, :error, new_state}
+            {:reply, {:error, reason}, state}
         end
     end
   end
