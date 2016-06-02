@@ -9,273 +9,268 @@ defmodule DBux.Value do
   @debug !is_nil(System.get_env("DBUX_DEBUG"))
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :byte, value: value}, _) when is_binary(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :byte, value: value}, _) when is_binary(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling byte start: value = #{inspect(value)}", 0)
     if String.length(value) != 1, do: throw {:badarg, :value, :outofrange}
 
-    << hd(to_char_list(value)) >> |> align(:byte)
+    bitstring <> << hd(to_char_list(value)) >>
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :byte, value: value}, _) when is_integer(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :byte, value: value}, _) when is_integer(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling byte start: value = #{inspect(value)}", 0)
     if value < 0,    do: throw {:badarg, :value, :outofrange}
     if value > 0xFF, do: throw {:badarg, :value, :outofrange}
 
-    << value >> |> align(:byte)
+    bitstring <> << value >>
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :boolean, value: value}, endianness) when is_boolean(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :boolean, value: value}, endianness) when is_boolean(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling boolean start: value = #{inspect(value)}", 0)
     if value do
-      marshall(%DBux.Value{type: :uint32, value: 1}, endianness)
+      bitstring |> marshall(%DBux.Value{type: :uint32, value: 1}, endianness)
     else
-      marshall(%DBux.Value{type: :uint32, value: 0}, endianness)
+      bitstring |> marshall(%DBux.Value{type: :uint32, value: 0}, endianness)
     end
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :int16, value: value}, endianness) when is_integer(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :int16, value: value}, endianness) when is_integer(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling int16 start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
     if value < -0x8000, do: throw {:badarg, :value, :outofrange}
     if value > 0x7FFF,  do: throw {:badarg, :value, :outofrange}
 
-    case endianness do
-      :little_endian ->
-        <<value :: size(2)-unit(8)-signed-little >>
-      :big_endian ->
-        <<value :: size(2)-unit(8)-signed-big >>
-    end |> align(:int16)
+    bitstring
+    |> align(:int16)
+    |> append(
+      case endianness do
+        :little_endian ->
+          <<value :: size(2)-unit(8)-signed-little >>
+        :big_endian ->
+          <<value :: size(2)-unit(8)-signed-big >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :uint16, value: value}, endianness) when is_integer(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :uint16, value: value}, endianness) when is_integer(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling uint16 start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
     if value < 0,      do: throw {:badarg, :value, :outofrange}
     if value > 0xFFFF, do: throw {:badarg, :value, :outofrange}
 
-    case endianness do
-      :little_endian ->
-        <<value :: size(2)-unit(8)-unsigned-little >>
-      :big_endian ->
-        <<value :: size(2)-unit(8)-unsigned-big >>
-    end |> align(:uint16)
+    bitstring
+    |> align(:uint16)
+    |> append(
+      case endianness do
+        :little_endian ->
+          <<value :: size(2)-unit(8)-unsigned-little >>
+        :big_endian ->
+          <<value :: size(2)-unit(8)-unsigned-big >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :int32, value: value}, endianness) when is_integer(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :int32, value: value}, endianness) when is_integer(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling int32 start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
     if value < -0x80000000, do: throw {:badarg, :value, :outofrange}
     if value > 0x7FFFFFFF, do: throw {:badarg, :value, :outofrange}
 
-    case endianness do
-      :little_endian ->
-        <<value :: size(4)-unit(8)-signed-little >>
-      :big_endian ->
-        <<value :: size(4)-unit(8)-signed-big >>
-    end |> align(:int32)
+    bitstring
+    |> align(:int32)
+    |> append(
+      case endianness do
+        :little_endian ->
+          <<value :: size(4)-unit(8)-signed-little >>
+        :big_endian ->
+          <<value :: size(4)-unit(8)-signed-big >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :uint32, value: value}, endianness) when is_integer(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :uint32, value: value}, endianness) when is_integer(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling uint32 start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
     if value < 0,          do: throw {:badarg, :value, :outofrange}
     if value > 0xFFFFFFFF, do: throw {:badarg, :value, :outofrange}
 
-    case endianness do
-      :little_endian ->
-        <<value :: size(4)-unit(8)-unsigned-little >>
-      :big_endian ->
-        <<value :: size(4)-unit(8)-unsigned-big >>
-    end |> align(:uint32)
+    bitstring
+    |> align(:uint32)
+    |> append(
+      case endianness do
+        :little_endian ->
+          <<value :: size(4)-unit(8)-unsigned-little >>
+        :big_endian ->
+          <<value :: size(4)-unit(8)-unsigned-big >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :int64, value: value}, endianness) when is_integer(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :int64, value: value}, endianness) when is_integer(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling int64 start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
     if value < -0x8000000000000000, do: throw {:badarg, :value, :outofrange}
     if value > 0x7FFFFFFFFFFFFFFF,  do: throw {:badarg, :value, :outofrange}
 
-    case endianness do
-      :little_endian ->
-        <<value :: size(8)-unit(8)-signed-little >>
-      :big_endian ->
-        <<value :: size(8)-unit(8)-signed-big >>
-    end |> align(:int64)
+    bitstring
+    |> align(:int64)
+    |> append(
+      case endianness do
+        :little_endian ->
+          <<value :: size(8)-unit(8)-signed-little >>
+        :big_endian ->
+          <<value :: size(8)-unit(8)-signed-big >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :uint64, value: value}, endianness) when is_integer(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :uint64, value: value}, endianness) when is_integer(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling uint64 start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
     if value < 0,                  do: throw {:badarg, :value, :outofrange}
     if value > 0xFFFFFFFFFFFFFFFF, do: throw {:badarg, :value, :outofrange}
 
-    case endianness do
-      :little_endian ->
-        <<value :: size(8)-unit(8)-unsigned-little >>
-      :big_endian ->
-        <<value :: size(8)-unit(8)-unsigned-big >>
-    end |> align(:uint64)
+    bitstring
+    |> align(:uint64)
+    |> append(
+      case endianness do
+        :little_endian ->
+          <<value :: size(8)-unit(8)-unsigned-little >>
+        :big_endian ->
+          <<value :: size(8)-unit(8)-unsigned-big >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :double, value: value}, endianness) when is_float(value) do
-    case endianness do
-      :little_endian ->
-        <<value :: float-size(8)-unit(8)-little >>
-      :big_endian ->
-        <<value :: float-size(8)-unit(8)-big >>
-    end |> align(:double)
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :double, value: value}, endianness) when is_float(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling double start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
+    bitstring
+    |> align(:double)
+    |> append(
+      case endianness do
+        :little_endian ->
+          <<value :: float-size(8)-unit(8)-little >>
+        :big_endian ->
+          <<value :: float-size(8)-unit(8)-big >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :unix_fd, value: value}, endianness) when is_integer(value) do
-    marshall(%DBux.Value{type: :uint32, value: value}, endianness)
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :unix_fd, value: value}, endianness) when is_integer(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling unix_fd start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
+    marshall(bitstring, %DBux.Value{type: :uint32, value: value}, endianness)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :string, value: value}, endianness) when is_binary(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :string, value: value}, endianness) when is_binary(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling string start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
     if byte_size(value) > 0xFFFFFFFF,        do: throw {:badarg, :value, :outofrange}
     if String.contains?(value, << 0 >>),     do: throw {:badarg, :value, :invalid}
     unless String.valid?(value),             do: throw {:badarg, :value, :invalid}
 
-    bitstring = case endianness do
-      :little_endian ->
-        {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
-        length_bitstring <> << value :: binary-unit(8)-little, 0 >>
-      :big_endian ->
-        {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
-        length_bitstring <> << value :: binary-unit(8)-big, 0 >>
-    end
-
-    {:ok, {bitstring, 0}}
+    bitstring
+    |> align(:string)
+    |> marshall(%DBux.Value{type: :uint32, value: byte_size(value)}, endianness)
+    |> append(
+      case endianness do
+        :little_endian ->
+          << value :: binary-little, 0 >>
+        :big_endian ->
+          << value :: binary-big, 0 >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :object_path, value: value}, endianness) when is_binary(value) do
-    # TODO add check if it contains a valid object path
-    marshall(%DBux.Value{type: :string, value: value}, endianness)
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :object_path, value: value}, endianness) when is_binary(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling object_path start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
+    # TODO add Bitstring if it contains a valid object path
+    marshall(bitstring, %DBux.Value{type: :string, value: value}, endianness)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :signature, value: value}, endianness) when is_binary(value) do
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :signature, value: value}, endianness) when is_binary(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling signature start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
     if byte_size(value) > 0xFF,          do: throw {:badarg, :value, :outofrange}
     if String.contains?(value, << 0 >>), do: throw {:badarg, :value, :invalid}
     unless String.valid?(value),         do: throw {:badarg, :value, :invalid}
     # TODO add check if it contains a valid signature
 
-    case endianness do
-      :little_endian ->
-        {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :byte, value: byte_size(value)}, endianness)
-        length_bitstring <> << value :: binary-unit(8)-little, 0 >>
-      :big_endian ->
-        {:ok, {length_bitstring, _}} = marshall(%DBux.Value{type: :byte, value: byte_size(value)}, endianness)
-        length_bitstring <> << value :: binary-unit(8)-big, 0 >>
-    end |> align(:signature)
+    bitstring
+    |> align(:signature)
+    |> marshall(%DBux.Value{type: :byte, value: byte_size(value)}, endianness)
+    |> append(
+      case endianness do
+        :little_endian ->
+          << value :: binary-little, 0 >>
+        :big_endian ->
+          << value :: binary-big, 0 >>
+      end)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :variant, value: value}, endianness) when is_map(value) do
-    if @debug, do: debug("Marshalling variant start: value = #{inspect(value)}", 0)
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :variant, value: value}, endianness) when is_map(value) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling variant start: value = #{inspect(value)}, bitstring = #{inspect(bitstring)}", 0)
 
-    {:ok, {signature_bitstring, _}} = %DBux.Value{type: :signature, value: DBux.Type.signature(value)} |> marshall(endianness)
-    if @debug, do: debug("Marshalling variant signature: signature_bitstring = #{inspect(signature_bitstring)}", 0)
-
-    {:ok, {body_bitstring, body_padding}} = value |> marshall(endianness)
-    if @debug, do: debug("Marshalling variant body: body_bitstring = #{inspect(body_bitstring)}, body_padding = #{inspect(body_padding)}", 0)
-    {:ok, {signature_bitstring <> body_bitstring, body_padding}}
+    bitstring
+    |> align(:signature)
+    |> marshall(%DBux.Value{type: :signature, value: DBux.Type.signature(value)}, endianness)
+    |> marshall(value, endianness)
   end
 
 
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :array, value: elements}, endianness) when is_list(elements) do
-    if @debug, do: debug("Marshalling array start: elements = #{inspect(elements)}", 0)
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: {:array, subtype}, value: elements}, endianness) when is_list(elements) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling array start: elements = #{inspect(elements)}, bitstring = #{inspect(bitstring)}", 0)
 
-    case elements do
-      [] ->
-        %DBux.Value{type: :uint32, value: 0} |> marshall(endianness)
+    bitstring_plus_placeholder = bitstring <> << 255, 255, 255, 255 >> |> align(subtype)
 
-      _ ->
-        elements_type = hd(elements).type
-
-        {elements_bitstring, last_element_padding} = Enum.reduce(elements, {<< >>, 0}, fn(element, {bitstring_acc, _}) ->
-          if element.type != elements_type, do: throw {:badarg, :value, :array_element_type_mismatch}
-
-          if @debug, do: debug("Marshalling array step: element = #{inspect(element)}, bitstring_acc = #{inspect(bitstring_acc)}", 0)
-          {:ok, {element_bitstring, element_padding}} = element |> marshall(endianness)
-          if @debug, do: debug("Marshalling array step: element_bitstring = #{inspect(element_bitstring)}, element_padding = #{inspect(element_padding)}", 0)
-
-          {bitstring_acc <> element_bitstring, element_padding}
-        end)
-
-        {:ok, {length_bitstring, _}} = %DBux.Value{type: :uint32, value: byte_size(elements_bitstring) - last_element_padding} |> marshall(endianness)
-        if @debug, do: debug("Marshalling array done: length_bitstring = #{inspect(length_bitstring)}, body_bitstring = #{inspect(elements_bitstring)}, last_element_padding = #{inspect(last_element_padding)}", 0)
-        {:ok, {length_bitstring <> elements_bitstring, last_element_padding}}
-    end
-  end
-
-
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :dict_entry} = value, endianness) do
-    marshall(%{value | type: :struct}, endianness)
-  end
-
-
-  @spec marshall(%DBux.Value{}, DBux.Protocol.endianness) :: {:ok, Bitstring, number}
-  def marshall(%DBux.Value{type: :struct, value: elements}, endianness) when is_list(elements) do
-    if @debug, do: debug("Marshalling struct start: elements = #{inspect(elements)}", 0)
-
-    elements_bitstring = Enum.reduce(elements, << >>, fn(element, bitstring_acc) ->
-      if @debug, do: debug("Marshalling struct step pre: element = #{inspect(element)}, bitstring_acc = #{inspect(bitstring_acc)}", 0)
-      {:ok, {element_bitstring, element_padding}} = element |> marshall(endianness)
-      if @debug, do: debug("Marshalling struct step post: element_bitstring = #{inspect(element_bitstring)}, element_padding = #{inspect(element_padding)}", 0)
-
-      bitstring_acc <> element_bitstring
+    bitstring_plus_placeholder_plus_elements = Enum.reduce(elements, bitstring_plus_placeholder, fn(element, acc) ->
+      if @debug, do: debug("Marshalling array element: element = #{inspect(element)}, acc = #{inspect(acc)}", 1)
+      acc
+      |> align(subtype)
+      |> marshall(element, endianness)
     end)
 
-    if @debug, do: debug("Marshalling struct done pre: elements_bitstring = #{inspect(elements_bitstring)}, byte_size(elements_bitstring) = #{inspect(byte_size(elements_bitstring))}", 0)
-    {:ok, {elements_bitstring, last_element_padding}} = elements_bitstring |> align(:struct)
-    if @debug, do: debug("Marshalling struct done post: elements_bitstring = #{inspect(elements_bitstring)}, last_element_padding = #{inspect(last_element_padding)}", 0)
-    {:ok, {elements_bitstring, last_element_padding}}
+    # FIXME nasty hack to substitute length in the existing bitstream
+    # we are just assembling it again
+    bitstring_length = byte_size(bitstring)
+    header_length = byte_size(bitstring_plus_placeholder) - bitstring_length
+    << bitstring :: binary-size(bitstring_length), _header :: binary-size(header_length), elements_bitstring :: binary >> = bitstring_plus_placeholder_plus_elements
+
+    bitstring
+    |> marshall(%DBux.Value{type: :uint32, value: byte_size(elements_bitstring)}, endianness)
+    |> align(subtype)
+    |> append(elements_bitstring)
   end
 
 
-  @doc """
-  Aligns given bitstring to bytes appropriate for given type by adding NULL
-  bytes at the end.
-
-  It returns `{:ok, aligned_bitstring, added_bytes_count}`.
-  """
-  @spec align(Bitstring, DBux.Type.t) :: {:ok, Bitstring, number}
-  def align(bitstring, type) when is_binary(bitstring) and (is_atom(type) or is_tuple(type)) do
-    align(bitstring, DBux.Type.align_size(type))
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :dict_entry} = value, endianness) when is_binary(bitstring) do
+    marshall(bitstring, %{value | type: :struct}, endianness)
   end
 
 
-  @doc """
-  Aligns given bitstring to bytes appropriate for given type by adding `bytes`
-  NULL bytes at the end.
+  @spec marshall(Bitstring, %DBux.Value{}, DBux.Protocol.endianness) :: Bitstring
+  def marshall(bitstring, %DBux.Value{type: :struct, value: elements}, endianness) when is_list(elements) and is_binary(bitstring) do
+    if @debug, do: debug("Marshalling struct start: elements = #{inspect(elements)}, bitstring = #{inspect(bitstring)}", 0)
 
-  It returns `{:ok, aligned_bitstring, added_bytes_count}`.
-  """
-  @spec align(Bitstring, number) :: {:ok, Bitstring, number}
-  def align(bitstring, bytes) when is_binary(bitstring) and is_number(bytes) do
-    case rem(byte_size(bitstring), bytes) do
-      0 ->
-        {:ok, {bitstring, 0}}
-
-      remaining ->
-        missing_bytes = bytes - remaining
-        {:ok, {bitstring <> String.duplicate(<< 0 >>, missing_bytes), missing_bytes}}
-    end
+    Enum.reduce(elements, bitstring |> align(:struct), fn(element, acc) ->
+      acc
+      |> marshall(element, endianness)
+    end)
   end
+
 
 
   def unmarshall(bitstring, endianness, {:array, subtype}, unwrap_values, depth) when is_binary(bitstring) and is_atom(endianness) do
@@ -339,7 +334,7 @@ defmodule DBux.Value do
             {:error, reason}
         end
 
-        # TODO add alignment?
+        # TODO add paddingment?
       end)
 
       case unwrap_values do
@@ -699,6 +694,39 @@ defmodule DBux.Value do
   end
 
 
+  def align(bitstring, type, offset \\ 0)
+
+  @doc """
+  Aligns given bitstring to bytes appropriate for given type by adding NULL
+  bytes at the end.
+
+  It returns `paddinged_bitstring`.
+  """
+  @spec align(Bitstring, DBux.Type.t, non_neg_integer) :: Bitstring
+  def align(bitstring, type, offset) when is_binary(bitstring) and (is_atom(type) or is_tuple(type)) and is_number(offset) do
+    align(bitstring, DBux.Type.align_size(type), offset)
+  end
+
+
+  @doc """
+  Aligns given bitstring to bytes appropriate for given type by adding `bytes`
+  NULL bytes at the end.
+
+  It returns `paddinged_bitstring`.
+  """
+  @spec align(Bitstring, non_neg_integer, non_neg_integer) :: Bitstring
+  def align(bitstring, boundary, offset) when is_binary(bitstring) and is_number(boundary) and is_number(offset) do
+    count = case rem(byte_size(bitstring), boundary) do
+      0         -> 0
+      remaining -> boundary - remaining
+    end + offset
+
+    if @debug, do: debug("Aligning: bitstring = #{inspect(bitstring)}, byte_size(bitstring) = #{inspect(byte_size(bitstring))}, boundary = #{inspect(boundary)}, count = #{inspect(count)}, offset = #{inspect(offset)}", 0)
+    bitstring <> String.duplicate(<< 0 >>, count)
+  end
+
+
+
   defp parse_array(bitstring, endianness, subtype, acc, unwrap_values, depth) when is_bitstring(bitstring) and is_list(acc) do
     if @debug, do: debug("Unmarshalling array element: next element, bitstring = #{inspect(bitstring)}, subtype = #{inspect(subtype)}, acc = #{inspect(acc)}", depth)
 
@@ -732,6 +760,11 @@ defmodule DBux.Value do
   defp override_type({:ok, {value, rest}}, type) when is_map(value), do: {:ok, {%{value | type: type}, rest}}
   defp override_type({:ok, {value, rest}}, _type), do: {:ok, {value, rest}}
   defp override_type({:error, reason}, _type), do: {:error, reason}
+
+
+  defp append(bitstring1, bitstring2) do
+    bitstring1 <> bitstring2
+  end
 
 
   defp debug(message, depth) when is_number(depth) and is_binary(message) do

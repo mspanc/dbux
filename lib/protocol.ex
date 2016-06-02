@@ -97,12 +97,7 @@ defmodule DBux.Protocol do
 
 
   defp marshall_bitstring_step([head|tail], endianness, bitstring_acc) do
-    {:ok, {bitstring_with_padding, _padding}} = bitstring_acc |> DBux.Value.align(head.type)
-
-    case DBux.Value.marshall(head, endianness) do
-      {:ok, {bitstring_value, _padding}} ->
-        marshall_bitstring_step(tail, endianness, bitstring_with_padding <> bitstring_value)
-    end
+    marshall_bitstring_step(tail, endianness, bitstring_acc |> DBux.Value.marshall(head, endianness))
   end
 
 
