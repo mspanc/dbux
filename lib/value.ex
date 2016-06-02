@@ -734,7 +734,7 @@ defmodule DBux.Value do
           if rest != << >> do
             parsed_bytes = byte_size(bitstring) - byte_size(rest)
             padding_size = DBux.Type.compute_padding_size(parsed_bytes, subtype_major)
-            << padding :: binary-size(padding_size), rest_without_padding :: binary >> = rest
+            << _padding :: binary-size(padding_size), rest_without_padding :: binary >> = rest
             if @debug, do: debug("Unmarshalled array element: value = #{inspect(value)}, parsed bytes = #{byte_size(bitstring) - byte_size(rest)}, padding_size = #{inspect(padding_size)}, rest_without_padding = #{inspect(rest_without_padding)}", depth)
 
             parse_array(rest_without_padding, endianness, subtype_major, subtype_minor, acc ++ [value], unwrap_values, depth)
