@@ -710,7 +710,7 @@ defmodule DBux.PeerConnection do
         new_state = %{state | mod_state: new_mod_state}
         case do_send_message_queue(messages, new_state) do
           {:ok, new_state} ->
-            {:reply, :ok, new_state}
+            {:noreply, new_state}
 
           {:error, reason} ->
             Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send message queue: reason = #{inspect(reason)}")
