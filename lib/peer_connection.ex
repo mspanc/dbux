@@ -698,9 +698,10 @@ defmodule DBux.PeerConnection do
 
 
   defp parse_received_data(bitstring, %{mod: mod, mod_state: mod_state, unwrap_values: unwrap_values, message_queue: message_queue, hello_serial: hello_serial} = state) do
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsing received data: bitstring = #{inspect(bitstring)}, state = #{inspect(state)}")
     case DBux.Message.unmarshall(bitstring, unwrap_values) do
       {:ok, {message, rest}} ->
-        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsed received message, message = #{inspect(message)}")
+        if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsed received message, message = #{inspect(message)}, state = #{inspect(state)}")
 
         return = case message.message_type do
           :method_call ->
@@ -748,9 +749,11 @@ defmodule DBux.PeerConnection do
           {:ok, {callback_return, new_message_queue}, new_state} ->
             case callback_return do
               {:noreply, new_mod_state} ->
+                if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Callback returned {:noreply, #{inspect(new_mod_state)}}")
                 parse_received_data(rest, %{new_state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue})
 
               {:send, messages, new_mod_state} ->
+                if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Callback returned {:send, #{inspect(messages)}, #{inspect(new_mod_state)}}")
                 new_state = %{new_state | buffer: rest, mod_state: new_mod_state, message_queue: new_message_queue}
 
                 case do_send_message_queue(messages, new_state) do
