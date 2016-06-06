@@ -258,6 +258,19 @@ defmodule DBux.PeerConnection do
     {:send, message_queue}
 
 
+  @doc """
+  Called when we receive a message.
+
+  TODO describe return values
+  """
+  @callback handle_info(any, any) ::
+    {:noreply, any} |
+    {:noreply, any, non_neg_integer} |
+    {:connect, any, any} |
+    {:disconnect, any, any} |
+    {:stop, any, any} |
+    {:send, message_queue, any}
+
 
   defmacro __using__(_) do
     quote location: :keep do
@@ -692,6 +705,17 @@ defmodule DBux.PeerConnection do
 
       {:stop, info, new_mod_state} ->
         {:stop, info, %{state | mod_state: new_mod_state}}
+
+      {:send, messages, new_mod_state} ->
+        new_state = %{state | mod_state: new_mod_state}
+        case do_send_message_queue(messages, new_state) do
+          {:ok, new_state} ->
+            {:reply, :ok, new_state}
+
+          {:error, reason} ->
+            Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to send message queue: reason = #{inspect(reason)}")
+            {:disconnect, :error, state}
+        end
     end
   end
 
