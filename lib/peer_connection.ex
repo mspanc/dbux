@@ -704,6 +704,7 @@ defmodule DBux.PeerConnection do
 
         return = case message.message_type do
           :method_call ->
+            if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Calling #{inspect(mod)}.handle_method_call(#{inspect(message.serial)}, #{inspect(message.sender)}, #{inspect(message.path)}, #{inspect(message.member)}, #{inspect(message.interface)}, #{inspect(message.body)}, #{inspect(message.flags)}, #{inspect(mod_state)})")
             {:ok, {mod.handle_method_call(message.serial, message.sender, message.path, message.member, message.interface, message.body, message.flags, mod_state), message_queue}, state}
 
           :method_return ->
@@ -711,6 +712,7 @@ defmodule DBux.PeerConnection do
               message.reply_serial == hello_serial ->
                 case message.message_type do
                   :method_return ->
+                    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Calling #{inspect(mod)}.handle_up(#{inspect(mod_state)})")
                     {:ok, {mod.handle_up(mod_state), message_queue}, %{state | hello_serial: nil}}
 
                   _ ->
@@ -718,25 +720,26 @@ defmodule DBux.PeerConnection do
                 end
 
               true ->
-                case message_queue |> Map.pop(message.reply_serial) do
-                  {{id, _}, new_message_queue} ->
-                    {:ok, {mod.handle_method_return(message.serial, message.sender, message.reply_serial, message.body, id, mod_state), new_message_queue}, state}
-
-                  {nil, new_message_queue} ->
-                    {:ok, {mod.handle_method_return(message.serial, message.sender, message.reply_serial, message.body, nil, mod_state), new_message_queue}, state}
+                {queue_id, new_message_queue} = case message_queue |> Map.pop(message.reply_serial) do
+                  {{id, _}, new_message_queue} -> {id, new_message_queue}
+                  {nil, new_message_queue}     -> {nil, new_message_queue}
                 end
+
+                if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Calling #{inspect(mod)}.handle_method_return(#{inspect(message.serial)}, #{inspect(message.sender)}, #{inspect(message.reply_serial)}, #{inspect(message.body)}, #{inspect(queue_id)}, #{inspect(mod_state)})")
+                {:ok, {mod.handle_method_return(message.serial, message.sender, message.reply_serial, message.body, queue_id, mod_state), new_message_queue}, state}
             end
 
           :error ->
-            case message_queue |> Map.pop(message.reply_serial) do
-              {{id, _}, new_message_queue} ->
-                {:ok, {mod.handle_error(message.serial, message.sender, message.reply_serial, message.error_name, message.body, id, mod_state), new_message_queue}, state}
-
-              {nil, new_message_queue} ->
-                {:ok, {mod.handle_error(message.serial, message.sender, message.reply_serial, message.error_name, message.body, nil, mod_state), new_message_queue}, state}
+            {queue_id, new_message_queue} = case message_queue |> Map.pop(message.reply_serial) do
+              {{id, _}, new_message_queue} -> {id, new_message_queue}
+              {nil, new_message_queue}     -> {nil, new_message_queue}
             end
 
+            if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Calling #{inspect(mod)}.handle_error(#{inspect(message.serial)}, #{inspect(message.sender)}, #{inspect(message.reply_serial)}, #{inspect(message.error_name)}, #{inspect(message.body)}, #{inspect(queue_id)}, #{inspect(mod_state)})")
+            {:ok, {mod.handle_error(message.serial, message.sender, message.reply_serial, message.error_name, message.body, queue_id, mod_state), new_message_queue}, state}
+
           :signal ->
+            if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Calling #{inspect(mod)}.handle_signal(#{inspect(message.serial)}, #{inspect(message.sender)}, #{inspect(message.path)}, #{inspect(message.member)}, #{inspect(message.interface)}, #{inspect(message.body)}, #{inspect(mod_state)})")
             {:ok, {mod.handle_signal(message.serial, message.sender, message.path, message.member, message.interface, message.body, mod_state), message_queue}, state}
         end
 
