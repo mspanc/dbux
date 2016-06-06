@@ -250,50 +250,57 @@ defmodule DBux.Message do
 
     case DBux.Protocol.unmarshall_bitstring(bitstring, endianness, @message_header_signature, true) do
       {:ok, {[_endianness_raw, message_type_raw, flags, @protocol_version, body_length, serial, header_fields], rest}} ->
-        if byte_size(rest) < body_length do
+        # Interpret header fields
+        message_type = case message_type_raw do
+          1 -> :method_call
+          2 -> :method_return
+          3 -> :error
+          4 -> :signal
+        end
+
+        message = %DBux.Message{message_type: message_type, flags: flags, serial: serial}
+
+        message = Enum.reduce(header_fields, message, fn({header_field_type, header_field_value}, acc) ->
+          message_key = case header_field_type do
+            1 -> :path
+            2 -> :interface
+            3 -> :member
+            4 -> :error_name
+            5 -> :reply_serial
+            6 -> :destination
+            7 -> :sender
+            8 -> :signature
+            9 -> :unix_fds
+          end
+
+          Map.put(acc, message_key, header_field_value)
+        end)
+
+        # Header is always aligned to 8 bytes
+        header_length = byte_size(bitstring) - byte_size(rest)
+        header_padding_size = DBux.Type.compute_padding_size(header_length, 8)
+
+        if byte_size(rest) < header_padding_size do
           {:error, :bitstring_too_short}
 
         else
-          # Interpret header fields
-          message_type = case message_type_raw do
-            1 -> :method_call
-            2 -> :method_return
-            3 -> :error
-            4 -> :signal
-          end
-
-          message = %DBux.Message{message_type: message_type, flags: flags, serial: serial}
-
-          message = Enum.reduce(header_fields, message, fn({header_field_type, header_field_value}, acc) ->
-            message_key = case header_field_type do
-              1 -> :path
-              2 -> :interface
-              3 -> :member
-              4 -> :error_name
-              5 -> :reply_serial
-              6 -> :destination
-              7 -> :sender
-              8 -> :signature
-              9 -> :unix_fds
-            end
-
-            Map.put(acc, message_key, header_field_value)
-          end)
-
-          # Header is always aligned to 8 bytes
-          header_length = byte_size(bitstring) - byte_size(rest)
-          header_padding_size = DBux.Type.compute_padding_size(header_length, 8)
-
           # Ignore padding, extract body & rest
-          << _header_padding :: binary-size(header_padding_size), body :: binary-size(body_length), rest :: binary >> = rest
+          << _header_padding :: binary-size(header_padding_size), rest :: binary >> = rest
 
-          # Unmarshall body
-          case DBux.Protocol.unmarshall_bitstring(body, endianness, message.signature, unwrap_values) do
-            {:ok, {body, _}} -> # Drop the remaining padding in the body
-              {:ok, {message |> Map.put(:body, body), rest}}
+          if byte_size(rest) < body_length do
+            {:error, :bitstring_too_short}
 
-            {:error, reason} ->
-              {:error, reason}
+          else
+            << body :: binary-size(body_length), rest :: binary >> = rest
+
+            # Unmarshall body
+            case DBux.Protocol.unmarshall_bitstring(body, endianness, message.signature, unwrap_values) do
+              {:ok, {body, _}} -> # Drop the remaining padding in the body
+                {:ok, {message |> Map.put(:body, body), rest}}
+
+              {:error, reason} ->
+                {:error, reason}
+            end
           end
         end
 

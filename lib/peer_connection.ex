@@ -661,10 +661,10 @@ defmodule DBux.PeerConnection do
 
 
   @doc false
-  def handle_info({:dbux_transport_receive, bitstream}, %{buffer: buffer} = state) do
+  def handle_info({:dbux_transport_receive, bitstring}, %{buffer: buffer} = state) do
     if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: transport receive")
 
-    case parse_received_data(buffer <> bitstream, state) do
+    case parse_received_data(buffer <> bitstring, state) do
       {:ok, new_state} ->
         {:noreply, new_state}
 
@@ -697,8 +697,8 @@ defmodule DBux.PeerConnection do
   end
 
 
-  defp parse_received_data(bitstream, %{mod: mod, mod_state: mod_state, unwrap_values: unwrap_values, message_queue: message_queue, hello_serial: hello_serial} = state) do
-    case DBux.Message.unmarshall(bitstream, unwrap_values) do
+  defp parse_received_data(bitstring, %{mod: mod, mod_state: mod_state, unwrap_values: unwrap_values, message_queue: message_queue, hello_serial: hello_serial} = state) do
+    case DBux.Message.unmarshall(bitstring, unwrap_values) do
       {:ok, {message, rest}} ->
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsed received message, message = #{inspect(message)}")
 
@@ -767,7 +767,7 @@ defmodule DBux.PeerConnection do
 
       {:error, :bitstring_too_short} ->
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Finished parsing received messages, bitstring too short")
-        {:ok, %{state | buffer: bitstream}}
+        {:ok, %{state | buffer: bitstring}}
 
       {:error, reason} ->
         Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to parse message: reason = #{inspect(reason)}")
