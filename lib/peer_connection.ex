@@ -505,7 +505,6 @@ defmodule DBux.PeerConnection do
       auth_mod:            auth_mod,
       auth_proc:           auth_proc,
       serial_proc:         serial_proc,
-      unique_name:         nil,
       hello_serial:        nil,
       buffer:              << >>,
       unwrap_values:       true,
@@ -547,21 +546,21 @@ defmodule DBux.PeerConnection do
       :ok ->
         case mod.handle_down(mod_state) do
           {:connect, new_mod_state} ->
-            {:connect, :callback, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+            {:connect, :callback, %{state | state: :init, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
 
           {:backoff, timeout, new_mod_state} ->
-            {:backoff, timeout, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+            {:backoff, timeout, %{state | state: :init, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
 
           {:noconnect, new_mod_state} ->
-            {:noconnect, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+            {:noconnect, %{state | state: :init, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
 
           {:stop, info, new_mod_state} ->
-            {:stop, info, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
+            {:stop, info, %{state | state: :init, hello_serial: nil, buffer: << >>, mod_state: new_mod_state}}
         end
 
       {:error, _} ->
         if @debug, do: Logger.warn("[DBux.PeerConnection #{inspect(self())}] Failed to disconnect transport")
-        {:backoff, 1000, %{state | state: :init, unique_name: nil, hello_serial: nil, buffer: << >>}}
+        {:backoff, 1000, %{state | state: :init, hello_serial: nil, buffer: << >>}}
     end
   end
 
@@ -662,7 +661,7 @@ defmodule DBux.PeerConnection do
 
   @doc false
   def handle_info({:dbux_transport_receive, bitstring}, %{buffer: buffer} = state) do
-    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: transport receive")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Handle info: transport receive, bitstring = #{inspect(bitstring)}, buffer = #{inspect(buffer)}, byte_size(buffer) = #{byte_size(buffer)}")
 
     case parse_received_data(buffer <> bitstring, state) do
       {:ok, new_state} ->
@@ -698,7 +697,7 @@ defmodule DBux.PeerConnection do
 
 
   defp parse_received_data(bitstring, %{mod: mod, mod_state: mod_state, unwrap_values: unwrap_values, message_queue: message_queue, hello_serial: hello_serial} = state) do
-    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsing received data: bitstring = #{inspect(bitstring)}, state = #{inspect(state)}")
+    if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsing received data: bitstring = #{inspect(bitstring)}, byte_size(bitstring) = #{byte_size(bitstring)}, state = #{inspect(state)}")
     case DBux.Message.unmarshall(bitstring, unwrap_values) do
       {:ok, {message, rest}} ->
         if @debug, do: Logger.debug("[DBux.PeerConnection #{inspect(self())}] Parsed received message, message = #{inspect(message)}, state = #{inspect(state)}")
