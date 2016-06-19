@@ -7,7 +7,12 @@ defmodule DBux.Transport.TCP do
 
   @behaviour DBux.Transport
 
-  @connect_timeout   5000
+  # Connect timeout should be lower than 5000, which is default value for
+  # GenServer.call. If it is going to be equal or higher, and there will be
+  # a connection timeout, the calling process will crash due to timeout in call.
+  # If you have ever needed to increase this timeout, remember about adding
+  # substantially larger timeout to calls.
+  @connect_timeout   3000
   @reconnect_timeout 1000
 
   @debug !is_nil(System.get_env("DBUX_DEBUG"))
